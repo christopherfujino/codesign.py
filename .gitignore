@@ -1,0 +1,4 @@
+*.zip
+staging/
+output/
+Entitlements.plist

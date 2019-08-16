@@ -1,0 +1,18 @@
+{
+  "binary_paths": [
+    "ios-usb-dependencies/libimobiledevice/idevice_id",
+    "ios-usb-dependencies/libimobiledevice/libimobiledevice.6.dylib",
+    "ios-usb-dependencies/libimobiledevice/idevicename",
+    "ios-usb-dependencies/libimobiledevice/idevicesyslog",
+    "ios-usb-dependencies/libimobiledevice/ideviceinfo",
+    "ios-usb-dependencies/libimobiledevice/idevicescreenshot",
+    "ios-usb-dependencies/libplist/libplist.3.dylib",
+    "ios-usb-dependencies/ideviceinstaller/ideviceinstaller",
+    "ios-usb-dependencies/usbmuxd/iproxy",
+    "ios-usb-dependencies/usbmuxd/libusbmuxd.4.dylib",
+    "ios-usb-dependencies/openssl/libcrypto.1.0.0.dylib",
+    "ios-usb-dependencies/openssl/libssl.1.0.0.dylib",
+    "ios-usb-dependencies/ios-deploy/ios-deploy",
+    "dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so"
+  ]
+}

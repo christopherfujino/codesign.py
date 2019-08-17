@@ -104,21 +104,32 @@ ARCHIVES = [
         },
 ]
 
-CONFIG = {
-    'dart-sdk': {
-        # pass in engine hash
-        'cloud_path': lambda commit: 'gs://flutter_infra/flutter/%s/dart-sdk-darwin-x64' % commit,
-        # pass in CWD
-        'config_path': lambda cwd: '%s/' % cwd,
-        }
-    }
-
 CWD = os.getcwd()
 
 GOOGLE_STORAGE_BASE = 'gs://flutter_infra/flutter'
 
-####################################################
+LOG = []
 
+
+def log(str_or_list, output_logfile=None):
+    '''Print to stdout and append to LOG list'''
+    message = ''
+    if isinstance(str_or_list, list):
+        message = ''.join(str_or_list)
+    #    for line in message:
+    #        LOG.append(line)
+    #        print line
+    elif isinstance(str_or_list, str):
+        message = str_or_list
+    else:
+        print 'Unknown entity "%s" passed to log' % str_or_list
+        exit(1)
+    LOG.append(message)
+    print message
+
+    if output_logfile is not None:
+        with open(output_logfile, 'w') as logfile:
+            logfile.write(message)
 
 
 class Cd(object):
@@ -152,35 +163,9 @@ def validate_command(command_name):
         exit(1)
 
 
-#def validate(args_list):
-#    '''Validate command-line args are valid, return normalized paths if so'''
-#    if len(args_list) <= 2:
-#        print 'Not all required arguments provided!'
-#        usage()
-#        exit(1)
-#
-#    validate_command('gsutil')
-#
-#    target_cloud_path = args_list[1]
-#    config_path = os.path.abspath(args_list[2])
-#
-#    if not target_cloud_path.startswith('gs://'):
-#        print(
-#            'The target archive should be of the form '
-#            '"gs://[bucket]/[object-name]"'
-#            )
-#        exit(1)
-#
-#    if not os.path.isfile(config_path):
-#        print 'Cannot find config file %s' % config_path
-#        exit(1)
-#
-#    return target_cloud_path, config_path
-
-
 def clean():
     '''Clean our build folders'''
-    for dirname in ['staging', 'output']:
+    for dirname in ['staging']:
         print os.path.join(CWD, dirname, '*')
         shutil.rmtree(dirname, ignore_errors=True)
         os.mkdir(dirname)
@@ -206,11 +191,9 @@ def ensure_entitlements_file():
         entitlements_file.close()
 
 
-def create_clean_staging(working_dir, name):
-    '''Delete if it exists, create staging dir'''
-    dirname = os.path.join(working_dir, '%s.staging' % name)
-    print 'Deleting/creating %s...\n' % dirname
-    shutil.rmtree(dirname, ignore_errors=True)
+def get_unique_filename(url):
+    '''Generates a filename based on input url'''
+    return url.replace('/', '_')
 
 
 def download(cloud_path, local_dest_path):
@@ -253,9 +236,15 @@ def read_json_file(file_path):
         return config_dict
 
 
+def create_staging_name(full_file_path):
+    '''Given zip archive, create corresponding, adjacent staging dir'''
+    return full_file_path + '.staging'
+
+
 def unzip_archive(file_path):
     '''Calls subprocess to unzip archive'''
-    archive_dirname = '%s.staging' % file_path
+    #archive_dirname = '%s.staging' % file_path
+    archive_dirname = create_staging_name(file_path)
     exit_code = subprocess.call([
         'unzip',
         file_path,
@@ -295,11 +284,54 @@ def sign(path, with_entitlements=False):
         exit(exit_code)
 
 
+def run_and_return_output(command):
+    '''Takes in list/string of command, returns list of stdout'''
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+    return proc.stdout.readlines()
+
+
+def get_logs_dir():
+    '''Ensure exists, and return path to global logs dir'''
+    log_dir = os.path.join(CWD, 'logs')
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+    return log_dir
+
+
+def zip_stats(path):
+    '''Append hash and size stats to log'''
+    log('Getting stats for %s' % path)
+    log(['shasum:'] + run_and_return_output(['shasum', path]))
+
+    logfilename = os.path.join(
+        get_logs_dir(),
+        '%i_%s.log' % (
+            time.time(),
+            os.path.basename(path)),
+        )
+    log(run_and_return_output([
+        'stat',
+        '-f',
+        'last changed: %c - size in bytes: %z',
+        path,
+        ]), logfilename)
+    #proc = subprocess.Popen([
+    #    'stat',
+    #    '-f',
+    #    'last changed: %c - size in bytes: %z',
+    #    path,
+    #    ], stdout=subprocess.PIPE)
+    #log(proc.stdout.readlines())
+
+    log(run_and_return_output(['unzip', '-l', path]))
+
+
 def update_zip(path, destination_path):
     '''Zips up a directory to the destination path'''
     with Cd(path):
         subprocess.call([
             'zip',
+            '--symlinks',
             '-r',
             '-u',  # Update existing files if newer on file system
             destination_path,
@@ -326,7 +358,6 @@ def upload_zip_to_notary(archive_path):
         archive_path,
         # Note that this tool outputs to STDERR, even on success
         ]
-    # proc = subprocess.Popen('fake-notarize.sh',stderr=subprocess.PIPE)
     proc = subprocess.Popen(command, stderr=subprocess.PIPE)
     out = '\n'.join(proc.stderr.readlines())
     print out
@@ -359,7 +390,7 @@ def poll_and_check_status(uuid):
 
     # Checking immediately will lead to the request not being found
     print 'Pausing %i seconds until the first status check...\n' % timeout
-    time.sleep(timeout)
+    #time.sleep(timeout) TODO RESTORE!
     while True:
         print 'Checking on the status of request: %s' % uuid
         proc = subprocess.Popen(command, stderr=subprocess.PIPE)
@@ -401,8 +432,6 @@ def success_message(output_archive):
     print 'You should now move your archive from %s' % output_archive
 
 
-#def process_archive(input_cloud_path, config_path):
-#def process_archive(input_cloud_path, regular_files, files_with_entitlements):
 def process_archive(config, commit, working_dir, is_reentrant=False):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
@@ -410,22 +439,20 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
         commit,
         config['path'])
 
-    create_clean_staging(working_dir, os.path.basename(config['path']))
-
-    print 'Downloading %s' % input_cloud_path
-
     zip_path = os.path.join(
         working_dir,
-        os.path.basename(input_cloud_path))
+        get_unique_filename(config['path']))
+
+    log('Downloading %s to %s' % (input_cloud_path, zip_path))
 
     download(input_cloud_path, zip_path)
 
-    print 'Beginning processing of %s...\n' % config['path']
+    log('Beginning processing of %s...\n' % config['path'])
 
-    print 'Unzipping archive...\n'
+    log('Unzipping archive...\n')
     staging_dirname = unzip_archive(zip_path)
 
-    print 'Validating config...\n'
+    log('Validating config...\n')
     files = config.get('files', [])
     files_with_entitlements = config.get('files_with_entitlements', [])
     for file_path in files + files_with_entitlements:
@@ -460,13 +487,6 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
                     )
                 sign(absolute_path, dictionary['entitlements'])
 
-    #for binary_path in archive['files_with_entitlements']:
-    #    if isinstance(binary_path, dict):
-    #        process_archive(config, commit)
-    #    else:
-    #        appended_path = os.path.join(CWD, 'staging', binary_path)
-    #        sign(appended_path)
-
     #output_zip_path = os.path.abspath(
     #    os.path.join(
     #        CWD,
@@ -474,20 +494,22 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     #        os.path.basename(zip_path)
     #        )
     #    )
-    signed_files_path = os.path.abspath(
-        os.path.join(CWD, 'staging')
-        )
 
-    print 'Updating %s with signed files...\n' % zip_path
+    zip_stats(zip_path)
+    log('Updating %s with signed files...\n' % zip_path)
     # update downloaded zip
-    update_zip(signed_files_path, zip_path)
+    update_zip(staging_dirname, zip_path)
+    zip_stats(zip_path)
 
     #print 'Uploading zip file to notary service...\n'
+    # We should only notarize and upload to GS at top level
     #if not is_reentrant:
-    #    notarize(output_zip_path)
+    #    notarize(zip_path)
     #    upload(input_cloud_path, output_zip_path)
 
     #success_message(output_zip_path)
+    log('Removing dir %s...' % staging_dirname)
+    shutil.rmtree(staging_dirname)
 
 
 
@@ -523,8 +545,9 @@ def main(args):
         #files_with_entitlements = archive.get('files_with_entitlements', [])
         #process_archive(cloud_path, regular_files, files_with_entitlements)
 
-        process_archive(archive, commit, CWD)
-    #process_archive(TARGET_ARCHIVE, CONFIG_PATH)
+        process_archive(archive, commit, os.path.join(CWD, 'staging'))
+    for line in LOG:
+        print(line)
 
 # validations
 for key in [

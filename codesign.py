@@ -12,6 +12,12 @@ import time
 
 ARCHIVES = [
     {
+        'path': 'darwin-x64/artifacts.zip',
+        'file': [
+            'flutter_tester',
+            ],
+        },
+    {
         'path': 'android-arm-release/darwin-x64.zip',
         'files': [
             'gen_snapshot',
@@ -29,12 +35,6 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            ],
-        },
-    {
-        'path': 'darwin-x64/artifacts.zip',
-        'file': [
-            'flutter_tester',
             ],
         },
     {
@@ -119,15 +119,30 @@ def log(str_or_list, output_logfile=None):
     elif isinstance(str_or_list, str):
         message = str_or_list
     else:
-        print 'Unknown entity "%s" passed to log' % str_or_list
-        exit(1)
-
+        log_and_exit('Unknown entity "%s" passed to log' % str_or_list)
     if output_logfile is None:
         LOG.append(message)
         print message
     else:
+        dirname = os.path.dirname(output_logfile)
+        if not os.path.isdir(dirname):
+            os.mkdir(dirname)
         with open(output_logfile, 'w') as logfile:
             logfile.write(message)
+
+
+def write_log_to_file(filename):
+    '''Write everything in LOG to given file, then clear LOG'''
+    with open(filename, 'w+') as logfile:
+        logfile.write('\n'.join(LOG))
+    del LOG[:]
+
+
+def log_and_exit(message, exit_code=1):
+    '''Flush log then exit'''
+    log(message)
+    write_log_to_file(os.path.join(get_logs_dir(), 'crasher.log'))
+    exit(exit_code)
 
 
 class Cd(object):
@@ -150,12 +165,13 @@ def usage():
 
     print '''
     Usage:
-    codesign.py /path/to/archive /path/to/config.json
+    codesign.py <engine-commit-hash>
     '''
 
 
 def validate_command(command_name):
     '''Validate the given command exists on PATH'''
+
     if subprocess.call(['which', command_name]) != 0:
         print 'You don\'t appear to have "%s" installed.' % command_name
         exit(1)
@@ -197,8 +213,10 @@ def get_unique_filename(url):
 def download(cloud_path, local_dest_path):
     '''Download supplied Google Storage URI'''
     if os.path.isfile(local_dest_path):
-        print '%s already exists, skipping download' % local_dest_path
+        log('Skipping download of %s, already exists locally\n' % cloud_path)
         return
+
+    log('Downloading %s...\n' % cloud_path)
 
     command = [
         'gsutil',
@@ -208,8 +226,7 @@ def download(cloud_path, local_dest_path):
         ]
     exit_code = subprocess.call(command)
     if exit_code != 0:
-        print 'Download of %s failed!' % cloud_path
-        exit(exit_code)
+        log_and_exit('Download of %s failed!' % cloud_path, exit_code)
 
 
 def upload(cloud_path, local_path):
@@ -222,8 +239,7 @@ def upload(cloud_path, local_path):
         ]
     exit_code = subprocess.call(command)
     if exit_code != 0:
-        print 'Upload of %s failed!' % local_path
-        exit(exit_code)
+        log_and_exit('Upload of %s failed!' % cloud_path, exit_code)
 
 
 def read_json_file(file_path):
@@ -248,7 +264,7 @@ def unzip_archive(file_path):
         '-d',
         archive_dirname])
     if exit_code != 0:
-        exit(exit_code)
+        log_and_exit('Unzipping of %s failed' % file_path, exit_code)
     return archive_dirname
 
 
@@ -277,8 +293,7 @@ def sign(path, with_entitlements=False):
         command += ['--entitlements', './Entitlements.plist']
     exit_code = subprocess.call(command)
     if exit_code != 0:
-        print 'Error while attempting to sign %s' % path
-        exit(exit_code)
+        log_and_exit('Error while attempting to sign %s' % path, exit_code)
 
 
 def run_and_return_output(command):
@@ -297,18 +312,10 @@ def get_logs_dir():
 
 def zip_stats(path):
     '''Append hash and size stats to log'''
-    log('Getting stats for %s' % path)
-    log(['shasum:'] + run_and_return_output(['shasum', path]))
-
-    log(run_and_return_output([
-        'stat',
-        '-f',
-        'last changed: %c - size in bytes: %z',
-        path,
-        ]))
-
+    log('Getting stats for %s...\n' % path)
     logfilename = os.path.join(
         get_logs_dir(),
+        'zip_contents',
         '%f_%s.log' % (
             time.time(),
             os.path.basename(path)),
@@ -354,8 +361,7 @@ def upload_zip_to_notary(archive_path):
 
     match = re.search('RequestUUID = ([a-z0-9-]+)', out)
     if not match:
-        print 'Unrecognized output from command: %s' % ' '.join(command)
-        exit(1)
+        log_and_exit('Unrecognized output from: %s' % ' '.join(command))
 
     request_uuid = match.group(1)
     print 'Your RequestUUID is: %s' % request_uuid
@@ -380,18 +386,16 @@ def poll_and_check_status(uuid):
 
     # Checking immediately will lead to the request not being found
     print 'Pausing %i seconds until the first status check...\n' % timeout
-    #time.sleep(timeout) TODO RESTORE!
+    time.sleep(timeout)
     while True:
-        print 'Checking on the status of request: %s' % uuid
+        log('Checking on the status of request: %s' % uuid)
         proc = subprocess.Popen(command, stderr=subprocess.PIPE)
-        output = '\n'.join(proc.stderr.readlines())
-        print output
+        output = ''.join(proc.stderr.readlines())
+        log(output)
 
         match = re.search('[ ]*Status: ([a-z ]+)', output)
         if not match:
-            print 'Unrecognized output from command: %s' % ' '.join(command)
-            print match.group(1)
-            exit(1)
+            log_and_exit('Unrecognized output from: %s' % ' '.join(command))
 
         status = match.group(1)
         if status == 'success':
@@ -399,9 +403,7 @@ def poll_and_check_status(uuid):
         elif status == 'in progress':
             print 'Notarization is still pending...\n'
         else:
-            print 'Notarization failed!'
-            print status
-            exit(1)
+            log_and_exit('Notarization failed with: %s' % status)
 
         print 'Pausing %i seconds until the next check...\n' % timeout
         time.sleep(timeout)
@@ -434,11 +436,9 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
         working_dir,
         unique_filename)
 
-    log('Downloading %s to %s' % (input_cloud_path, zip_path))
+    log('Beginning processing of %s...\n' % config['path'])
 
     download(input_cloud_path, zip_path)
-
-    log('Beginning processing of %s...\n' % config['path'])
 
     log('Unzipping archive...\n')
     staging_dirname = unzip_archive(zip_path)
@@ -451,8 +451,7 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
             continue
         absolute_path = os.path.join(staging_dirname, file_path)
         if not validate_binary_exists(absolute_path):
-            print 'Cannot find file %s listed in config!' % absolute_path
-            exit(1)
+            log_and_exit('Cannot find file %s from config' % absolute_path)
 
     print 'Signing binaries...\n'
     for dictionary in [
@@ -492,41 +491,30 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     update_zip(staging_dirname, zip_path)
     zip_stats(zip_path)
 
-    #print 'Uploading zip file to notary service...\n'
+    log('Uploading zip file to notary service...\n')
     # We should only notarize and upload to GS at top level
-    #if not is_reentrant:
-    #    notarize(zip_path)
-    #    upload(input_cloud_path, output_zip_path)
+    if not is_reentrant:
+        notarize(zip_path)
+        #upload(input_cloud_path, zip_path)
 
     #success_message(output_zip_path)
-    log('Removing dir %s...' % staging_dirname)
+    log('Removing dir %s...\n' % staging_dirname)
     shutil.rmtree(staging_dirname)
 
+    log('Finished processing %s...\n' % input_cloud_path)
     # Only write logfile for top-level archives
     if not is_reentrant:
-        logfile_path = os.path.join(get_logs_dir(), '%s.log' % unique_filename)
-        log('Writing logfile to %s' % logfile_path)
+        dirname = os.path.join(get_logs_dir(), 'archive_runs')
+        if not os.path.isdir(dirname):
+            os.mkdir(dirname)
+        logfile_path = os.path.join(
+            dirname,
+            '%f_%s.log' % (
+                time.time(),
+                unique_filename))
         with open(logfile_path, 'w') as logfile:
             logfile.write('\n'.join(LOG))
         del LOG[:]
-
-
-
-####################################################
-
-
-def sign_and_notarize(config):
-    '''Invoke outside script to sign one archive'''
-    command = [
-        os.path.join(CWD, 'codesign-archive.py'),
-        config['cloud_path'],
-        config['config_path'],
-        ]
-    exit_code = subprocess.call(command)
-    if exit_code != 0:
-        print 'Error while trying to sign & notarize %s' % config['name']
-        print 'Exited with code %i' % exit_code
-        exit(exit_code)
 
 
 def main(args):
@@ -539,14 +527,8 @@ def main(args):
     clean()
 
     for archive in ARCHIVES:
-        #cloud_path = 'gs://flutter_infra/flutter/%s/%s' % (commit, archive['path'])
-        #regular_files = archive.get('files', [])
-        #files_with_entitlements = archive.get('files_with_entitlements', [])
-        #process_archive(cloud_path, regular_files, files_with_entitlements)
-
         process_archive(archive, commit, os.path.join(CWD, 'staging'))
-    for line in LOG:
-        print(line)
+
 
 # validations
 for key in [
@@ -566,7 +548,7 @@ CODESIGN_CERT_NAME = os.environ['CODESIGN_CERT_NAME']
 
 
 if len(sys.argv) == 1:
-    print 'Please provide engine commit hash as an argument'
+    usage()
     exit(1)
 
 main(sys.argv[1:])

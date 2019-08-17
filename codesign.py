@@ -40,44 +40,57 @@ ARCHIVES = [
     {
         'path': 'darwin-x64/FlutterMacOS.framework.zip',
         'files': [
-            'FlutterMacOS.framework/FlutterMacOS',  # recursive zip?
-            'FlutterMacOS.framework/Versions/A/FlutterMacOS',
-            'FlutterMacOS.framework/Versions/Current/FlutterMacOS',
+            {
+                'path': 'FlutterMacOS.framework.zip',
+                'files': [
+                    'Versions/A/FlutterMacOS',
+                    ]
+                }
             ],
         },
     {
         'path': 'android-arm64-release/darwin-x64.zip',
         'files': [
-            'darwin-x64/gen_snapshot',
+            'gen_snapshot',
             ],
         },
     {
         'path': 'android-arm64-profile/darwin-x64.zip',
         'files': [
-            'darwin-x64/gen_snapshot',
+            'gen_snapshot',
             ],
         },
     {
         'path': 'ios/artifacts.zip',
         'files': [
-            'ios/Flutter.framework/Flutter',
-            'ios/gen_snapshot_arm64',
-            'ios/gen_snapshot_armv7',
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ],
+                },
+            'gen_snapshot_arm64',
+            'gen_snapshot_armv7',
             ],
         },
     {
         'path': 'ios-release/artifacts.zip',
         'files': [
-            'ios-release/gen_snapshot_arm64',
-            'ios-release/gen_snapshot',
-            'ios-release/gen_snapshot_armv7',
-            'ios-release/Flutter.framework/Flutter',
+            'gen_snapshot_arm64',
+            #'gen_snapshot',
+            'gen_snapshot_armv7',
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ]
+                },
             ],
         },
     {
         'path': 'android-arm-profile/darwin-x64.zip',
         'files': [
-            'android-arm-profile/darwin-x64/gen_snapshot',
+            'gen_snapshot',
             ],
         },
     {
@@ -193,23 +206,29 @@ def ensure_entitlements_file():
         entitlements_file.close()
 
 
-def download(cloud_path):
+def create_clean_staging(working_dir, name):
+    '''Delete if it exists, create staging dir'''
+    dirname = os.path.join(working_dir, '%s.staging' % name)
+    print 'Deleting/creating %s...\n' % dirname
+    shutil.rmtree(dirname, ignore_errors=True)
+
+
+def download(cloud_path, local_dest_path):
     '''Download supplied Google Storage URI'''
-    local_dest_path = os.path.join(CWD, 'staging', os.path.basename(cloud_path))
     if os.path.isfile(local_dest_path):
         print '%s already exists, skipping download' % local_dest_path
-    else:
-        command = [
-            'gsutil',
-            'cp',
-            cloud_path,
-            local_dest_path,
-            ]
-        exit_code = subprocess.call(command)
-        if exit_code != 0:
-            print 'Download of %s failed!' % cloud_path
-            exit(exit_code)
-    return local_dest_path
+        return
+
+    command = [
+        'gsutil',
+        'cp',
+        cloud_path,
+        local_dest_path,
+        ]
+    exit_code = subprocess.call(command)
+    if exit_code != 0:
+        print 'Download of %s failed!' % cloud_path
+        exit(exit_code)
 
 
 def upload(cloud_path, local_path):
@@ -236,9 +255,15 @@ def read_json_file(file_path):
 
 def unzip_archive(file_path):
     '''Calls subprocess to unzip archive'''
-    exit_code = subprocess.call(['unzip', file_path, '-d', 'staging'])
+    archive_dirname = '%s.staging' % file_path
+    exit_code = subprocess.call([
+        'unzip',
+        file_path,
+        '-d',
+        archive_dirname])
     if exit_code != 0:
         exit(exit_code)
+    return archive_dirname
 
 
 def get_binary_names(config):
@@ -248,8 +273,7 @@ def get_binary_names(config):
 
 def validate_binary_exists(path):
     '''Validate a binary file listed in config exists'''
-    appended_path = os.path.join('staging', path)
-    return os.path.isfile(appended_path)
+    return os.path.isfile(path)
 
 
 def sign(path, with_entitlements=False):
@@ -271,12 +295,13 @@ def sign(path, with_entitlements=False):
         exit(exit_code)
 
 
-def zip_dir(path, destination_path):
+def update_zip(path, destination_path):
     '''Zips up a directory to the destination path'''
     with Cd(path):
         subprocess.call([
             'zip',
             '-r',
+            '-u',  # Update existing files if newer on file system
             destination_path,
             '.',
             '-i',
@@ -378,30 +403,37 @@ def success_message(output_archive):
 
 #def process_archive(input_cloud_path, config_path):
 #def process_archive(input_cloud_path, regular_files, files_with_entitlements):
-def process_archive(config, commit, is_reentrant=False):
+def process_archive(config, commit, working_dir, is_reentrant=False):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
         GOOGLE_STORAGE_BASE,
         commit,
         config['path'])
 
+    create_clean_staging(working_dir, os.path.basename(config['path']))
+
     print 'Downloading %s' % input_cloud_path
 
-    input_archive = download(input_cloud_path)
+    zip_path = os.path.join(
+        working_dir,
+        os.path.basename(input_cloud_path))
+
+    download(input_cloud_path, zip_path)
 
     print 'Beginning processing of %s...\n' % config['path']
 
     print 'Unzipping archive...\n'
-    unzip_archive(input_archive)
+    staging_dirname = unzip_archive(zip_path)
 
     print 'Validating config...\n'
     files = config.get('files', [])
     files_with_entitlements = config.get('files_with_entitlements', [])
-    for name in files + files_with_entitlements:
-        if isinstance(name, dict):
+    for file_path in files + files_with_entitlements:
+        if isinstance(file_path, dict):
             continue
-        if not validate_binary_exists(name):
-            print 'Cannot find file %s listed in config!' % name
+        absolute_path = os.path.join(staging_dirname, file_path)
+        if not validate_binary_exists(absolute_path):
+            print 'Cannot find file %s listed in config!' % absolute_path
             exit(1)
 
     print 'Signing binaries...\n'
@@ -414,12 +446,19 @@ def process_archive(config, commit, is_reentrant=False):
                 'files': files_with_entitlements,
                 'entitlements': True,
                 }]:
-        for binary_path in dictionary['files']:
-            if isinstance(binary_path, dict):
-                process_archive(binary_path, commit)
+        for relative_path in dictionary['files']:
+            if isinstance(relative_path, dict):
+                process_archive(
+                    relative_path,  # this is actually a dict, not a path
+                    commit,
+                    staging_dirname,  # new working_dir
+                    True)  # is re-entrant
             else:
-                appended_path = os.path.join(CWD, 'staging', binary_path)
-                sign(appended_path, dictionary['entitlements'])
+                absolute_path = os.path.join(
+                    staging_dirname,
+                    relative_path,
+                    )
+                sign(absolute_path, dictionary['entitlements'])
 
     #for binary_path in archive['files_with_entitlements']:
     #    if isinstance(binary_path, dict):
@@ -428,25 +467,27 @@ def process_archive(config, commit, is_reentrant=False):
     #        appended_path = os.path.join(CWD, 'staging', binary_path)
     #        sign(appended_path)
 
-    output_zip_path = os.path.abspath(
-        os.path.join(
-            CWD,
-            'output',
-            os.path.basename(input_archive)
-            )
-        )
+    #output_zip_path = os.path.abspath(
+    #    os.path.join(
+    #        CWD,
+    #        'output',
+    #        os.path.basename(zip_path)
+    #        )
+    #    )
     signed_files_path = os.path.abspath(
         os.path.join(CWD, 'staging')
         )
 
-    print 'Zipping signed files for notarization...\n'
-    zip_dir(signed_files_path, output_zip_path)
+    print 'Updating %s with signed files...\n' % zip_path
+    # update downloaded zip
+    update_zip(signed_files_path, zip_path)
 
     #print 'Uploading zip file to notary service...\n'
     #if not is_reentrant:
     #    notarize(output_zip_path)
+    #    upload(input_cloud_path, output_zip_path)
 
-    success_message(output_zip_path)
+    #success_message(output_zip_path)
 
 
 
@@ -473,16 +514,16 @@ def main(args):
 
     ensure_entitlements_file()
 
+    print 'Clean build folders...\n'
+    clean()
+
     for archive in ARCHIVES:
         #cloud_path = 'gs://flutter_infra/flutter/%s/%s' % (commit, archive['path'])
         #regular_files = archive.get('files', [])
         #files_with_entitlements = archive.get('files_with_entitlements', [])
         #process_archive(cloud_path, regular_files, files_with_entitlements)
-        print 'Clean build folders...\n'
-        # We can't clean within process_archive as this will mess up recursion
-        #clean()
 
-        process_archive(archive, commit)
+        process_archive(archive, commit, CWD)
     #process_archive(TARGET_ARCHIVE, CONFIG_PATH)
 
 # validations

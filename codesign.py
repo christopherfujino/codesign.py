@@ -116,18 +116,16 @@ def log(str_or_list, output_logfile=None):
     message = ''
     if isinstance(str_or_list, list):
         message = ''.join(str_or_list)
-    #    for line in message:
-    #        LOG.append(line)
-    #        print line
     elif isinstance(str_or_list, str):
         message = str_or_list
     else:
         print 'Unknown entity "%s" passed to log' % str_or_list
         exit(1)
-    LOG.append(message)
-    print message
 
-    if output_logfile is not None:
+    if output_logfile is None:
+        LOG.append(message)
+        print message
+    else:
         with open(output_logfile, 'w') as logfile:
             logfile.write(message)
 
@@ -243,7 +241,6 @@ def create_staging_name(full_file_path):
 
 def unzip_archive(file_path):
     '''Calls subprocess to unzip archive'''
-    #archive_dirname = '%s.staging' % file_path
     archive_dirname = create_staging_name(file_path)
     exit_code = subprocess.call([
         'unzip',
@@ -303,27 +300,20 @@ def zip_stats(path):
     log('Getting stats for %s' % path)
     log(['shasum:'] + run_and_return_output(['shasum', path]))
 
-    logfilename = os.path.join(
-        get_logs_dir(),
-        '%i_%s.log' % (
-            time.time(),
-            os.path.basename(path)),
-        )
     log(run_and_return_output([
         'stat',
         '-f',
         'last changed: %c - size in bytes: %z',
         path,
-        ]), logfilename)
-    #proc = subprocess.Popen([
-    #    'stat',
-    #    '-f',
-    #    'last changed: %c - size in bytes: %z',
-    #    path,
-    #    ], stdout=subprocess.PIPE)
-    #log(proc.stdout.readlines())
+        ]))
 
-    log(run_and_return_output(['unzip', '-l', path]))
+    logfilename = os.path.join(
+        get_logs_dir(),
+        '%f_%s.log' % (
+            time.time(),
+            os.path.basename(path)),
+        )
+    log(run_and_return_output(['unzip', '-l', path]), logfilename)
 
 
 def update_zip(path, destination_path):
@@ -439,9 +429,10 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
         commit,
         config['path'])
 
+    unique_filename = get_unique_filename(config['path'])
     zip_path = os.path.join(
         working_dir,
-        get_unique_filename(config['path']))
+        unique_filename)
 
     log('Downloading %s to %s' % (input_cloud_path, zip_path))
 
@@ -510,6 +501,14 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     #success_message(output_zip_path)
     log('Removing dir %s...' % staging_dirname)
     shutil.rmtree(staging_dirname)
+
+    # Only write logfile for top-level archives
+    if not is_reentrant:
+        logfile_path = os.path.join(get_logs_dir(), '%s.log' % unique_filename)
+        log('Writing logfile to %s' % logfile_path)
+        with open(logfile_path, 'w') as logfile:
+            logfile.write('\n'.join(LOG))
+        del LOG[:]
 
 
 

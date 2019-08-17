@@ -1,4 +1,4 @@
 *.zip
-staging/
+*staging/
 output/
 Entitlements.plist

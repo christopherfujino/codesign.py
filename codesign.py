@@ -13,8 +13,9 @@ import time
 ARCHIVES = [
     {
         'path': 'darwin-x64/artifacts.zip',
-        'file': [
+        'files': [
             'flutter_tester',
+            'gen_snapshot',
             ],
         },
     {
@@ -131,9 +132,14 @@ def log(str_or_list, output_logfile=None):
             logfile.write(message)
 
 
-def write_log_to_file(filename):
+def write_log_to_file(filename, should_append=False):
     '''Write everything in LOG to given file, then clear LOG'''
-    with open(filename, 'w+') as logfile:
+    mode = 'w'
+    if should_append:
+        mode = 'w+'
+    with open(filename, mode) as logfile:
+        if should_append:
+            logfile.write('\n - NEW LOG - \n')
         logfile.write('\n'.join(LOG))
     del LOG[:]
 
@@ -229,7 +235,7 @@ def download(cloud_path, local_dest_path):
         log_and_exit('Download of %s failed!' % cloud_path, exit_code)
 
 
-def upload(cloud_path, local_path):
+def upload(local_path, cloud_path):
     '''Upload local_path to GCP cloud_path'''
     command = [
         'gsutil',
@@ -420,8 +426,7 @@ def notarize(archive_path):
 
 def success_message(output_archive):
     '''Print success message.'''
-    print 'Your notarization was successful.'
-    print 'You should now move your archive from %s' % output_archive
+    log('Your notarization of %s was successful.' % output_archive)
 
 
 def process_archive(config, commit, working_dir, is_reentrant=False):
@@ -453,7 +458,7 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
         if not validate_binary_exists(absolute_path):
             log_and_exit('Cannot find file %s from config' % absolute_path)
 
-    print 'Signing binaries...\n'
+    log('Signing binaries...\n')
     for dictionary in [
             {
                 'files': files,
@@ -475,15 +480,8 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
                     staging_dirname,
                     relative_path,
                     )
+                log('Signing %s...\n' % absolute_path)
                 sign(absolute_path, dictionary['entitlements'])
-
-    #output_zip_path = os.path.abspath(
-    #    os.path.join(
-    #        CWD,
-    #        'output',
-    #        os.path.basename(zip_path)
-    #        )
-    #    )
 
     zip_stats(zip_path)
     log('Updating %s with signed files...\n' % zip_path)
@@ -491,13 +489,13 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     update_zip(staging_dirname, zip_path)
     zip_stats(zip_path)
 
-    log('Uploading zip file to notary service...\n')
     # We should only notarize and upload to GS at top level
     if not is_reentrant:
+        log('Uploading zip file to notary service...\n')
         notarize(zip_path)
-        #upload(input_cloud_path, zip_path)
+        upload(zip_path, input_cloud_path)
 
-    #success_message(output_zip_path)
+    success_message(zip_path)
     log('Removing dir %s...\n' % staging_dirname)
     shutil.rmtree(staging_dirname)
 
@@ -512,22 +510,24 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
             '%f_%s.log' % (
                 time.time(),
                 unique_filename))
-        with open(logfile_path, 'w') as logfile:
-            logfile.write('\n'.join(LOG))
-        del LOG[:]
+        write_log_to_file(logfile_path)
 
 
 def main(args):
     '''Application entrypoint'''
-    commit = args[0]
-
     ensure_entitlements_file()
 
     print 'Clean build folders...\n'
     clean()
 
-    for archive in ARCHIVES:
-        process_archive(archive, commit, os.path.join(CWD, 'staging'))
+    if args[0] == '--verify':
+        request_uuid = args[1]
+        poll_and_check_status(request_uuid)
+    else:
+        commit = args[0]
+
+        for archive in ARCHIVES:
+            process_archive(archive, commit, os.path.join(CWD, 'staging'))
 
 
 # validations

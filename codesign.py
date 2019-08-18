@@ -297,8 +297,8 @@ def sign(path, with_entitlements=False):
         '--timestamp',  # add a secure timestamp
         '--options=runtime',  # hardened runtime
         ]
-    if with_entitlements:
-        command += ['--entitlements', './Entitlements.plist']
+    #if with_entitlements:
+    command += ['--entitlements', './Entitlements.plist']
     exit_code = subprocess.call(command)
     if exit_code != 0:
         log_and_exit('Error while attempting to sign %s' % path, exit_code)

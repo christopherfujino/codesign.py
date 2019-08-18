@@ -113,6 +113,8 @@ GOOGLE_STORAGE_BASE = 'gs://flutter_infra/flutter'
 
 LOG = []
 
+STARTING_TIME = int(time.time())
+
 
 def log(str_or_list, output_logfile=None):
     '''Print to stdout and append to LOG list'''
@@ -126,6 +128,7 @@ def log(str_or_list, output_logfile=None):
     if output_logfile is None:
         LOG.append(message)
         print message
+    # This is used for logging out zip contents
     else:
         dirname = os.path.dirname(output_logfile)
         if not os.path.isdir(dirname):
@@ -185,12 +188,11 @@ def validate_command(command_name):
         exit(1)
 
 
-def clean():
+def create_working_dir(parent):
     '''Clean our build folders'''
-    for dirname in ['staging']:
-        print os.path.join(CWD, dirname, '*')
-        shutil.rmtree(dirname, ignore_errors=True)
-        os.mkdir(dirname)
+    dirname = os.path.join(parent, '%i_session' % STARTING_TIME)
+    os.mkdir(dirname)
+    return dirname
 
 
 def ensure_entitlements_file():
@@ -312,7 +314,7 @@ def run_and_return_output(command):
 
 def get_logs_dir():
     '''Ensure exists, and return path to global logs dir'''
-    log_dir = os.path.join(CWD, 'logs')
+    log_dir = os.path.join(CWD, '%i_logs' % STARTING_TIME)
     if not os.path.isdir(log_dir):
         os.mkdir(log_dir)
     return log_dir
@@ -521,7 +523,7 @@ def main(args):
     ensure_entitlements_file()
 
     print 'Clean build folders...\n'
-    clean()
+    working_dir = create_working_dir(CWD)
 
     if args[0] == '--verify':
         request_uuid = args[1]
@@ -530,7 +532,7 @@ def main(args):
         commit = args[0]
 
         for archive in ARCHIVES:
-            process_archive(archive, commit, os.path.join(CWD, 'staging'))
+            process_archive(archive, commit, working_dir)
 
 
 # validations

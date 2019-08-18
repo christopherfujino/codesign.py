@@ -14,8 +14,10 @@ ARCHIVES = [
     {
         'path': 'darwin-x64/artifacts.zip',
         'files': [
-            'flutter_tester',
             'gen_snapshot',
+            ],
+        'files_with_entitlements': [
+            'flutter_tester',
             ],
         },
     {
@@ -491,8 +493,9 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
 
     # We should only notarize and upload to GS at top level
     if not is_reentrant:
-        log('Uploading zip file to notary service...\n')
+        log('Uploading %s to notary service...\n' % zip_path)
         notarize(zip_path)
+        log('Uploading to %s' % input_cloud_path)
         upload(zip_path, input_cloud_path)
 
     success_message(zip_path)

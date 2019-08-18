@@ -379,8 +379,8 @@ def upload_zip_to_notary(archive_path):
     return request_uuid
 
 
-def poll_and_check_status(uuid):
-    '''Poll and check the status of our request'''
+def check_status(uuid):
+    '''Check the status of our request'''
     command = [
         'xcrun',
         'altool',
@@ -390,42 +390,31 @@ def poll_and_check_status(uuid):
         CODESIGN_USERNAME,
         '--password',
         APP_SPECIFIC_PASSWORD,
-        # Note that this tool outputs to STDERR, even on success
         ]
-    timeout = 15
 
-    # Checking immediately will lead to the request not being found
-    print 'Pausing %i seconds until the first status check...\n' % timeout
-    time.sleep(timeout)
-    while True:
-        log('Checking on the status of request: %s' % uuid)
-        proc = subprocess.Popen(command, stderr=subprocess.PIPE)
-        output = ''.join(proc.stderr.readlines())
-        log(output)
+    log('Checking on the status of request: %s' % uuid)
+    # Note that this tool outputs to STDERR, even on success
+    proc = subprocess.Popen(command, stderr=subprocess.PIPE)
+    output = ''.join(proc.stderr.readlines())
+    log(output)
 
-        match = re.search('[ ]*Status: ([a-z ]+)', output)
-        if not match:
-            log_and_exit('Unrecognized output from: %s' % ' '.join(command))
+    match = re.search('[ ]*Status: ([a-z ]+)', output)
+    if not match:
+        log_and_exit('Unrecognized output from: %s' % ' '.join(command))
 
-        status = match.group(1)
-        if status == 'success':
-            return True
-        elif status == 'in progress':
-            print 'Notarization is still pending...\n'
-        else:
-            log_and_exit('Notarization failed with: %s' % status)
+    status = match.group(1)
+    if status == 'success':
+        return True
+    if status == 'in progress':
+        log('Notarization is still pending...\n')
+        return False
 
-        print 'Pausing %i seconds until the next check...\n' % timeout
-        time.sleep(timeout)
+    return log_and_exit('Notarization failed with: %s' % status)
 
 
 def notarize(archive_path):
     '''Notarize given archive zip'''
-    request_uuid = upload_zip_to_notary(archive_path)
-    start = time.time()
-    poll_and_check_status(request_uuid)
-    end = time.time()
-    print 'Notarizing took %s' % str(datetime.timedelta(seconds=(end - start)))
+    return upload_zip_to_notary(archive_path)
 
 
 def success_message(output_archive):
@@ -453,9 +442,8 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     staging_dirname = unzip_archive(zip_path)
 
     log('Validating config...\n')
-    files = config.get('files', [])
-    files_with_entitlements = config.get('files_with_entitlements', [])
-    for file_path in files + files_with_entitlements:
+    files = config.get('files', []) + config.get('files_with_entitlements', [])
+    for file_path in files:
         if isinstance(file_path, dict):
             continue
         absolute_path = os.path.join(staging_dirname, file_path)
@@ -463,7 +451,7 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
             log_and_exit('Cannot find file %s from config' % absolute_path)
 
     log('Signing binaries...\n')
-    for relative_path in files + files_with_entitlements:
+    for relative_path in files:
         if isinstance(relative_path, dict):
             process_archive(
                 relative_path,  # this is actually a dict, not a path
@@ -484,29 +472,57 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     update_zip(staging_dirname, zip_path)
     zip_stats(zip_path)
 
-    # We should only notarize and upload to GS at top level
-    if not is_reentrant:
-        log('Uploading %s to notary service...\n' % zip_path)
-        notarize(zip_path)
-        log('Uploading to %s' % input_cloud_path)
-        upload(zip_path, input_cloud_path)
-
-    success_message(zip_path)
     log('Removing dir %s...\n' % staging_dirname)
     shutil.rmtree(staging_dirname)
 
     log('Finished processing %s...\n' % input_cloud_path)
-    # Only write logfile for top-level archives
-    if not is_reentrant:
-        dirname = os.path.join(get_logs_dir(), 'archive_runs')
-        if not os.path.isdir(dirname):
-            os.mkdir(dirname)
-        logfile_path = os.path.join(
-            dirname,
-            '%f_%s.log' % (
-                time.time(),
-                unique_filename))
-        write_log_to_file(logfile_path)
+
+    if is_reentrant:
+        return None
+
+    # Only notarize & write logfile for top-level archives
+    log('Uploading %s to notary service...\n' % zip_path)
+    request_uuid = notarize(zip_path)
+
+    dirname = os.path.join(get_logs_dir(), 'archive_runs')
+    if not os.path.isdir(dirname):
+        os.mkdir(dirname)
+    logfile_path = os.path.join(
+        dirname,
+        '%f_%s.log' % (
+            time.time(),
+            unique_filename))
+    write_log_to_file(logfile_path)
+
+    success_message(zip_path)
+
+    # Return this dict for later verifying of the notarization & uploading
+    return {
+        'input_cloud_path': input_cloud_path,
+        'uuid': request_uuid,
+        'zip_path': zip_path,
+        }
+
+
+def verify_and_upload(request):
+    '''Given a notarization request, check for its status & upload if done'''
+    # Only upload if notarization was successful
+    result = check_status(request['uuid'])
+    if result:
+        log('Uploading to %s' % request['input_cloud_path'])
+        upload(request['zip_path'], request['input_cloud_path'])
+        logs_dirname = os.path.join(get_logs_dir(), 'verification_runs')
+        if not os.path.isdir(logs_dirname):
+            os.mkdir(logs_dirname)
+
+    file_name = os.path.join(
+        logs_dirname,
+        '%i_%s' % (
+            time.time(),
+            get_unique_filename(request['input_cloud_path'])))
+    write_log_to_file(file_name)
+
+    return result
 
 
 def main(args):
@@ -518,12 +534,32 @@ def main(args):
 
     if args[0] == '--verify':
         request_uuid = args[1]
-        poll_and_check_status(request_uuid)
+        check_status(request_uuid)
     else:
         commit = args[0]
-
+        requests = []
         for archive in ARCHIVES:
-            process_archive(archive, commit, working_dir)
+            requests.append(process_archive(archive, commit, working_dir))
+
+        index = 0
+        last_at_zero = time.time()
+        # Iterate until requests is empty
+        while requests:
+            request = requests[index]
+            if verify_and_upload(request):
+                requests.remove(request)
+            # Leave in list but move on to next request
+            else:
+                index += 1
+            if index >= len(requests):
+                now = time.time()
+                time_since_last_at_zero = now - last_at_zero
+                # Ensure we never hit server more than twice in 20 seconds
+                # for a particular request
+                if time_since_last_at_zero < 20:
+                    time.sleep(20 - time_since_last_at_zero)
+                index = 0
+                last_at_zero = now
 
 
 # validations

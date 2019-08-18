@@ -288,7 +288,7 @@ def validate_binary_exists(path):
     return os.path.isfile(path)
 
 
-def sign(path, with_entitlements=False):
+def sign(path):
     '''Sign a single binary'''
     command = [
         'codesign',
@@ -463,29 +463,20 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
             log_and_exit('Cannot find file %s from config' % absolute_path)
 
     log('Signing binaries...\n')
-    for dictionary in [
-            {
-                'files': files,
-                'entitlements': False,
-                },
-            {
-                'files': files_with_entitlements,
-                'entitlements': True,
-                }]:
-        for relative_path in dictionary['files']:
-            if isinstance(relative_path, dict):
-                process_archive(
-                    relative_path,  # this is actually a dict, not a path
-                    commit,
-                    staging_dirname,  # new working_dir
-                    True)  # is re-entrant
-            else:
-                absolute_path = os.path.join(
-                    staging_dirname,
-                    relative_path,
-                    )
-                log('Signing %s...\n' % absolute_path)
-                sign(absolute_path, dictionary['entitlements'])
+    for relative_path in files + files_with_entitlements:
+        if isinstance(relative_path, dict):
+            process_archive(
+                relative_path,  # this is actually a dict, not a path
+                commit,
+                staging_dirname,  # new working_dir
+                True)  # is re-entrant
+        else:
+            absolute_path = os.path.join(
+                staging_dirname,
+                relative_path,
+                )
+            log('Signing %s...\n' % absolute_path)
+            sign(absolute_path)
 
     zip_stats(zip_path)
     log('Updating %s with signed files...\n' % zip_path)

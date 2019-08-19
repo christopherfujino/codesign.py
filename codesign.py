@@ -515,12 +515,12 @@ def verify_and_upload(request):
         if not os.path.isdir(logs_dirname):
             os.mkdir(logs_dirname)
 
-    file_name = os.path.join(
-        logs_dirname,
-        '%i_%s' % (
-            time.time(),
-            get_unique_filename(request['input_cloud_path'])))
-    write_log_to_file(file_name)
+        file_name = os.path.join(
+            logs_dirname,
+            '%i_%s.log' % (
+                time.time(),
+                get_unique_filename(request['input_cloud_path'])))
+        write_log_to_file(file_name)
 
     return result
 

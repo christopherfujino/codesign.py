@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 '''Hello world'''
 
-import datetime
 import json
 import os
 import re
@@ -13,25 +12,24 @@ import time
 ARCHIVES = [
     {
         'path': 'darwin-x64/artifacts.zip',
-        'files': [
-            'gen_snapshot',
-            ],
         'files_with_entitlements': [
             'flutter_tester',
+            'gen_snapshot',
             ],
         },
     {
         'path': 'android-arm-release/darwin-x64.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot',
             ],
         },
     {
         'path': 'ios-profile/artifacts.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot_arm64',
-            #'gen_snapshot',
             'gen_snapshot_armv7',
+            ],
+        'files': [
             {
                 'path': 'Flutter.framework.zip',
                 'files': [
@@ -53,13 +51,13 @@ ARCHIVES = [
         },
     {
         'path': 'android-arm64-release/darwin-x64.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot',
             ],
         },
     {
         'path': 'android-arm64-profile/darwin-x64.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot',
             ],
         },
@@ -72,16 +70,19 @@ ARCHIVES = [
                     'Flutter',
                     ],
                 },
+            ],
+        'files_with_entitlements': [
             'gen_snapshot_arm64',
             'gen_snapshot_armv7',
             ],
         },
     {
         'path': 'ios-release/artifacts.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot_arm64',
-            #'gen_snapshot',
             'gen_snapshot_armv7',
+            ],
+        'files': [
             {
                 'path': 'Flutter.framework.zip',
                 'files': [
@@ -92,7 +93,7 @@ ARCHIVES = [
         },
     {
         'path': 'android-arm-profile/darwin-x64.zip',
-        'files': [
+        'files_with_entitlements': [
             'gen_snapshot',
             ],
         },
@@ -108,8 +109,6 @@ ARCHIVES = [
 ]
 
 CWD = os.getcwd()
-
-GOOGLE_STORAGE_BASE = 'gs://flutter_infra/flutter'
 
 LOG = []
 
@@ -288,7 +287,7 @@ def validate_binary_exists(path):
     return os.path.isfile(path)
 
 
-def sign(path):
+def sign(path, with_entitlements=False):
     '''Sign a single binary'''
     command = [
         'codesign',
@@ -299,8 +298,8 @@ def sign(path):
         '--timestamp',  # add a secure timestamp
         '--options=runtime',  # hardened runtime
         ]
-    #if with_entitlements:
-    command += ['--entitlements', './Entitlements.plist']
+    if with_entitlements:
+        command += ['--entitlements', './Entitlements.plist']
     exit_code = subprocess.call(command)
     if exit_code != 0:
         log_and_exit('Error while attempting to sign %s' % path, exit_code)
@@ -422,10 +421,10 @@ def success_message(output_archive):
     log('Your notarization of %s was successful.' % output_archive)
 
 
-def process_archive(config, commit, working_dir, is_reentrant=False):
+def process_archive(storage_base_url, config, commit, working_dir, is_reentrant=False):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
-        GOOGLE_STORAGE_BASE,
+        storage_base_url,
         commit,
         config['path'])
 
@@ -442,29 +441,36 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
     staging_dirname = unzip_archive(zip_path)
 
     log('Validating config...\n')
-    files = config.get('files', []) + config.get('files_with_entitlements', [])
-    for file_path in files:
-        if isinstance(file_path, dict):
+    files = [
+        {'path': path, 'entitlements': False}
+        for path in config.get('files', [])]
+    files_with_entitlements = [
+        {'path': path, 'entitlements': True}
+        for path in config.get('files_with_entitlements', [])]
+    all_files = files + files_with_entitlements
+    for file_dict in all_files:
+        if isinstance(file_dict['path'], dict):
             continue
-        absolute_path = os.path.join(staging_dirname, file_path)
+        absolute_path = os.path.join(staging_dirname, file_dict['path'])
         if not validate_binary_exists(absolute_path):
             log_and_exit('Cannot find file %s from config' % absolute_path)
 
     log('Signing binaries...\n')
-    for relative_path in files:
-        if isinstance(relative_path, dict):
+    for file_dict in all_files:
+        if isinstance(file_dict['path'], dict):
             process_archive(
-                relative_path,  # this is actually a dict, not a path
+                storage_base_url,
+                file_dict['path'],  # this is actually a dict, not a path
                 commit,
                 staging_dirname,  # new working_dir
                 True)  # is re-entrant
         else:
             absolute_path = os.path.join(
                 staging_dirname,
-                relative_path,
+                file_dict['path'],
                 )
             log('Signing %s...\n' % absolute_path)
-            sign(absolute_path)
+            sign(absolute_path, file_dict['entitlements'])
 
     zip_stats(zip_path)
     log('Updating %s with signed files...\n' % zip_path)
@@ -493,8 +499,6 @@ def process_archive(config, commit, working_dir, is_reentrant=False):
             time.time(),
             unique_filename))
     write_log_to_file(logfile_path)
-
-    success_message(zip_path)
 
     # Return this dict for later verifying of the notarization & uploading
     return {
@@ -532,34 +536,53 @@ def main(args):
     print 'Clean build folders...\n'
     working_dir = create_working_dir(CWD)
 
+    requests = []
     if args[0] == '--verify':
         request_uuid = args[1]
         check_status(request_uuid)
+    elif args[0] == '--ios-deploy':
+        commit = args[1]
+        archive = {
+            'path': 'ios-deploy.zip',
+            'files': ['ios-deploy'],
+            }
+        requests.append(process_archive(
+            'gs://flutter_infra/ios-usb-dependencies/ios-deploy',
+            archive,
+            commit,
+            working_dir))
     else:
         commit = args[0]
         requests = []
         for archive in ARCHIVES:
-            requests.append(process_archive(archive, commit, working_dir))
+            requests.append(process_archive(
+                'gs://flutter_infra/flutter',
+                archive,
+                commit,
+                working_dir))
 
-        index = 0
-        last_at_zero = time.time()
-        # Iterate until requests is empty
-        while requests:
-            request = requests[index]
-            if verify_and_upload(request):
-                requests.remove(request)
-            # Leave in list but move on to next request
-            else:
-                index += 1
-            if index >= len(requests):
-                now = time.time()
-                time_since_last_at_zero = now - last_at_zero
-                # Ensure we never hit server more than twice in 20 seconds
-                # for a particular request
-                if time_since_last_at_zero < 20:
-                    time.sleep(20 - time_since_last_at_zero)
-                index = 0
-                last_at_zero = now
+    index = 0
+    last_at_zero = time.time()
+    # Iterate until requests is empty
+    while requests:
+        now = time.time()
+        time_since_last_at_zero = now - last_at_zero
+        # Ensure we never hit server more than twice in 15 seconds
+        # for a particular request
+        if time_since_last_at_zero < 15:
+            timeout = 15 - time_since_last_at_zero
+            log('Waiting %i seconds until next check...' % timeout)
+            time.sleep(timeout)
+
+        request = requests[index]
+        if verify_and_upload(request):
+            requests.remove(request)
+        # Leave in list but move on to next request
+        else:
+            index += 1
+        if index >= len(requests):
+            index = 0
+            last_at_zero = now
 
 
 # validations

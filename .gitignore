@@ -1,5 +1,6 @@
 *.zip
 *staging/
+*session/
 output/
 Entitlements.plist
 *.log

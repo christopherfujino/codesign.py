@@ -566,6 +566,7 @@ def main(args):
     # Iterate until requests is empty
     while requests:
         now = time.time()
+        log('%i requests left' % len(requests))
         time_since_last_at_zero = now - last_at_zero
         # Ensure we never hit server more than twice in 15 seconds
         # for a particular request
@@ -576,9 +577,10 @@ def main(args):
 
         request = requests[index]
         if verify_and_upload(request):
+            # remove from list...same index now points to next request...
             requests.remove(request)
-        # Leave in list but move on to next request
         else:
+            # Leave in list but move on to next request
             index += 1
         if index >= len(requests):
             index = 0

@@ -307,8 +307,8 @@ def sign(path, with_entitlements=False):
 
 def run_and_return_output(command):
     '''Takes in list/string of command, returns list of stdout'''
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE)
-    return proc.stdout.readlines()
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return proc.stdout.readlines() + proc.stderr.readlines()
 
 
 def get_logs_dir():
@@ -349,7 +349,7 @@ def update_zip(path, destination_path):
 
 def upload_zip_to_notary(archive_path):
     '''Uploads zip file to the notary service'''
-    print 'Initiating upload of file %s...' % archive_path
+    log('Initiating upload of file %s to notary service...' % archive_path)
     command = [
         'xcrun',
         'altool',
@@ -362,18 +362,17 @@ def upload_zip_to_notary(archive_path):
         APP_SPECIFIC_PASSWORD,
         '--file',
         archive_path,
-        # Note that this tool outputs to STDERR, even on success
         ]
-    proc = subprocess.Popen(command, stderr=subprocess.PIPE)
-    out = '\n'.join(proc.stderr.readlines())
-    print out
+    # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
+    out = '\n'.join(run_and_return_output(command))
+    log('out: %s' % out)
 
     match = re.search('RequestUUID = ([a-z0-9-]+)', out)
     if not match:
         log_and_exit('Unrecognized output from: %s' % ' '.join(command))
 
     request_uuid = match.group(1)
-    print 'Your RequestUUID is: %s' % request_uuid
+    log('Your RequestUUID is: %s' % request_uuid)
 
     return request_uuid
 
@@ -392,9 +391,8 @@ def check_status(uuid):
         ]
 
     log('Checking on the status of request: %s' % uuid)
-    # Note that this tool outputs to STDERR, even on success
-    proc = subprocess.Popen(command, stderr=subprocess.PIPE)
-    output = ''.join(proc.stderr.readlines())
+    # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
+    output = '\n'.join(run_and_return_output(command))
     log(output)
 
     match = re.search('[ ]*Status: ([a-z ]+)', output)

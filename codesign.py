@@ -535,20 +535,66 @@ def main(args):
     working_dir = create_working_dir(CWD)
 
     requests = []
+    optional_switch = re.search('^--([a-z-]+)', args[0])
     if args[0] == '--verify':
         request_uuid = args[1]
         check_status(request_uuid)
-    elif args[0] == '--ios-deploy':
-        commit = args[1]
-        archive = {
-            'path': 'ios-deploy.zip',
-            'files': ['ios-deploy'],
+    elif optional_switch:
+        name = optional_switch.group(1)
+        libimobiledevice_archives = {
+            'ios-deploy': {
+                'path': 'ios-deploy.zip',
+                'files': ['ios-deploy'],
+                },
+            'libimobiledevice': {
+                'path': 'libimobiledevice.zip',
+                'files': [
+                    'idevice_id',
+                    'ideviceinfo',
+                    'idevicename',
+                    'idevicescreenshot',
+                    'idevicesyslog',
+                    'libimobiledevice.6.dylib',
+                    ],
+                },
+            'ideviceinstaller': {
+                'path': 'ideviceinstaller.zip',
+                'files': [
+                    'ideviceinstaller',
+                    ],
+                },
+            'libplist': {
+                'path': 'libplist.zip',
+                'files': [
+                    'libplist.3.dylib',
+                    ],
+                },
+            'usbmuxd': {
+                'path': 'usbmuxd.zip',
+                'files': [
+                    'iproxy',
+                    'libusbmuxd.4.dylib',
+                    ],
+                },
+            'openssl': {
+                'path': 'openssl.zip',
+                'files': [
+                    'libssl.1.0.0.dylib',
+                    'libcrypto.1.0.0.dylib',
+                    ],
+                },
             }
-        requests.append(process_archive(
-            'gs://flutter_infra/ios-usb-dependencies/ios-deploy',
-            archive,
-            commit,
-            working_dir))
+        archive = libimobiledevice_archives[name]
+        if not archive:
+            log('Unknown option %s' % args[0])
+            exit(1)
+        request = process_archive(
+            'gs://flutter_infra/ios-usb-dependencies/%s' % name,
+            libimobiledevice_archives[name],
+            args[1],
+            working_dir,
+        )
+        requests.append(request)
     else:
         commit = args[0]
         requests = []
@@ -566,10 +612,10 @@ def main(args):
         now = time.time()
         log('%i requests left' % len(requests))
         time_since_last_at_zero = now - last_at_zero
-        # Ensure we never hit server more than twice in 15 seconds
+        # Ensure we never hit server more than twice in 10 seconds
         # for a particular request
-        if time_since_last_at_zero < 15:
-            timeout = 15 - time_since_last_at_zero
+        if time_since_last_at_zero < 10:
+            timeout = 10 - time_since_last_at_zero
             log('Waiting %i seconds until next check...' % timeout)
             time.sleep(timeout)
 

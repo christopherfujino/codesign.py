@@ -104,7 +104,8 @@ ARCHIVES = [
             ],
         'files_with_entitlements': [
             'dart-sdk/bin/dart',
-            ]
+            'dart-sdk/bin/utils/gen_snapshot',
+            ],
         },
 ]
 
@@ -153,6 +154,12 @@ def log_and_exit(message, exit_code=1):
     log(message)
     write_log_to_file(os.path.join(get_logs_dir(), 'crasher.log'))
     exit(exit_code)
+
+
+def shasum(path_to_file):
+    '''log out the shasum of a file'''
+    sha = run_and_return_output(['shasum', path_to_file])
+    log('shasum of %s is %s' % (path_to_file, sha))
 
 
 class Cd(object):
@@ -550,7 +557,7 @@ def main(args):
                 },
             'libimobiledevice': {
                 'path': 'libimobiledevice.zip',
-                'files': [
+                'files_with_entitlements': [
                     'idevice_id',
                     'ideviceinfo',
                     'idevicename',
@@ -561,26 +568,26 @@ def main(args):
                 },
             'ideviceinstaller': {
                 'path': 'ideviceinstaller.zip',
-                'files': [
+                'files_with_entitlements': [
                     'ideviceinstaller',
                     ],
                 },
             'libplist': {
                 'path': 'libplist.zip',
-                'files': [
+                'files_with_entitlements': [
                     'libplist.3.dylib',
                     ],
                 },
             'usbmuxd': {
                 'path': 'usbmuxd.zip',
-                'files': [
+                'files_with_entitlements': [
                     'iproxy',
                     'libusbmuxd.4.dylib',
                     ],
                 },
             'openssl': {
                 'path': 'openssl.zip',
-                'files': [
+                'files_with_entitlements': [
                     'libssl.1.0.0.dylib',
                     'libcrypto.1.0.0.dylib',
                     ],

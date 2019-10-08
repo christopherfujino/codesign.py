@@ -316,7 +316,10 @@ def sign(path, with_entitlements=False):
 
 def run_and_return_output(command):
     '''Takes in list/string of command, returns list of stdout'''
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     return proc.stdout.readlines() + proc.stderr.readlines()
 
 
@@ -428,10 +431,16 @@ def success_message(output_archive):
     log('Your notarization of %s was successful.' % output_archive)
 
 
-def process_archive(storage_base_url, config, commit, working_dir, is_reentrant=False):
+def process_archive(
+        input_storage_base_url,
+        output_storage_base_url,
+        config,
+        commit,
+        working_dir,
+        is_reentrant=False):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
-        storage_base_url,
+        input_storage_base_url,
         commit,
         config['path'])
 
@@ -462,11 +471,16 @@ def process_archive(storage_base_url, config, commit, working_dir, is_reentrant=
         if not validate_binary_exists(absolute_path):
             log_and_exit('Cannot find file %s from config' % absolute_path)
 
+    output_cloud_path = '%s/%s/%s' % (
+        output_storage_base_url,
+        commit,
+        config['path'])
     log('Signing binaries...\n')
     for file_dict in all_files:
         if isinstance(file_dict['path'], dict):
             process_archive(
-                storage_base_url,
+                input_storage_base_url,
+                output_storage_base_url,
                 file_dict['path'],  # this is actually a dict, not a path
                 commit,
                 staging_dirname,  # new working_dir
@@ -509,7 +523,7 @@ def process_archive(storage_base_url, config, commit, working_dir, is_reentrant=
 
     # Return this dict for later verifying of the notarization & uploading
     return {
-        'input_cloud_path': input_cloud_path,
+        'output_cloud_path': output_cloud_path,
         'uuid': request_uuid,
         'zip_path': zip_path,
         }
@@ -520,8 +534,8 @@ def verify_and_upload(request):
     # Only upload if notarization was successful
     result = check_status(request['uuid'])
     if result:
-        log('Uploading to %s' % request['input_cloud_path'])
-        upload(request['zip_path'], request['input_cloud_path'])
+        log('Uploading to %s' % request['output_cloud_path'])
+        upload(request['zip_path'], request['output_cloud_path'])
         logs_dirname = os.path.join(get_logs_dir(), 'verification_runs')
         if not os.path.isdir(logs_dirname):
             os.mkdir(logs_dirname)
@@ -598,6 +612,7 @@ def main(args):
             log('Unknown option %s' % args[0])
             exit(1)
         request = process_archive(
+            'gs://flutter_infra/ios-usb-dependencies/unsigned/%s' % name,
             'gs://flutter_infra/ios-usb-dependencies/%s' % name,
             libimobiledevice_archives[name],
             args[1],
@@ -609,6 +624,7 @@ def main(args):
         requests = []
         for archive in ARCHIVES:
             requests.append(process_archive(
+                'gs://flutter_infra/flutter',
                 'gs://flutter_infra/flutter',
                 archive,
                 commit,

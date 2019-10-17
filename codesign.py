@@ -606,6 +606,13 @@ def main(args):
                     'libcrypto.1.0.0.dylib',
                     ],
                 },
+            'libzip': {
+                'path': 'libzip.zip',
+                'files_with_entitlements': [
+                    'libzip.5.0.dylib',
+                    'libzip.5.dylib',
+                    ],
+                },
             }
         archive = libimobiledevice_archives[name]
         if not archive:

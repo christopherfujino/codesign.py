@@ -4,3 +4,4 @@
 output/
 Entitlements.plist
 *.log
+.vscode

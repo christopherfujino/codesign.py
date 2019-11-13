@@ -159,7 +159,8 @@ def log_and_exit(message, exit_code=1):
 def shasum(path_to_file):
     '''log out the shasum of a file'''
     sha = run_and_return_output(['shasum', path_to_file])
-    log('shasum of %s is %s' % (path_to_file, sha))
+    log(sha)
+    return sha
 
 
 class Cd(object):
@@ -453,6 +454,8 @@ def process_archive(
 
     download(input_cloud_path, zip_path)
 
+    shasum(zip_path)
+
     log('Unzipping archive...\n')
     staging_dirname = unzip_archive(zip_path)
 
@@ -497,6 +500,7 @@ def process_archive(
     log('Updating %s with signed files...\n' % zip_path)
     # update downloaded zip
     update_zip(staging_dirname, zip_path)
+    shasum(zip_path)
     zip_stats(zip_path)
 
     log('Removing dir %s...\n' % staging_dirname)
@@ -544,7 +548,7 @@ def verify_and_upload(request):
             logs_dirname,
             '%i_%s.log' % (
                 time.time(),
-                get_unique_filename(request['input_cloud_path'])))
+                get_unique_filename(request['output_cloud_path'])))
         write_log_to_file(file_name)
 
     return result

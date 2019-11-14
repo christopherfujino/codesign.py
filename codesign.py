@@ -104,7 +104,7 @@ ARCHIVES = [
             ],
         'files_with_entitlements': [
             'dart-sdk/bin/dart',
-            'dart-sdk/bin/utils/gen_snapshot',
+            #'dart-sdk/bin/utils/gen_snapshot',
             ],
         },
 ]

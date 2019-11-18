@@ -643,6 +643,10 @@ def main(args):
 
     index = 0
     last_at_zero = time.time()
+
+    # Sleep here so that we never check for a job before it has been started,
+    # leading to an error from the notary service.
+    time.sleep(30)
     # Iterate until requests is empty
     while requests:
         now = time.time()
@@ -664,7 +668,7 @@ def main(args):
             index += 1
         if index >= len(requests):
             index = 0
-            last_at_zero = now
+            last_at_zero = time.time()
 
 
 # validations

@@ -218,6 +218,10 @@ def ensure_entitlements_file():
         <true/>
         <key>com.apple.security.cs.allow-dyld-environment-variables</key>
         <true/>
+        <key>com.apple.security.network.client</key>
+        <true/>
+        <key>com.apple.security.network.server</key>
+        <true/>
     </dict>
 </plist>
 ''')

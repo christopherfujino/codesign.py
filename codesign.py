@@ -650,7 +650,7 @@ def main(args):
 
     # Sleep here so that we never check for a job before it has been started,
     # leading to an error from the notary service.
-    time.sleep(30)
+    time.sleep(45)
     # Iterate until requests is empty
     while requests:
         now = time.time()

@@ -127,7 +127,7 @@ def log(str_or_list, output_logfile=None):
         log_and_exit('Unknown entity "%s" passed to log' % str_or_list)
     if output_logfile is None:
         LOG.append(message)
-        print message
+        print(message)
     # This is used for logging out zip contents
     else:
         dirname = os.path.dirname(output_logfile)
@@ -181,17 +181,17 @@ class Cd(object):
 def usage():
     '''Prints usage for this script'''
 
-    print '''
+    print('''
     Usage:
     codesign.py <engine-commit-hash>
-    '''
+    ''')
 
 
 def validate_command(command_name):
     '''Validate the given command exists on PATH'''
 
     if subprocess.call(['which', command_name]) != 0:
-        print 'You don\'t appear to have "%s" installed.' % command_name
+        print('You don\'t appear to have "%s" installed.' % command_name)
         exit(1)
 
 
@@ -206,7 +206,7 @@ def ensure_entitlements_file():
     '''Write entitlements file if it does not exist'''
     entitlements_path = os.path.join(CWD, 'Entitlements.plist')
     if not os.path.isfile(entitlements_path):
-        print 'Writing Entitlements.plist file...\n'
+        log('Writing Entitlements.plist file...\n')
         entitlements_file = open(entitlements_path, 'w')
         entitlements_file.write('''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

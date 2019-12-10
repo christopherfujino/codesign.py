@@ -453,10 +453,6 @@ def process_archive(
     log('Beginning processing of %s...\n' % config['path'])
 
     download(input_cloud_path, zip_path)
-    unsigned_zip_path = 'unsigned-%s' % zip_path
-
-    log('Copying file %s to %s' % (zip_path, unsigned_zip_path))
-    shutil.copyfile(zip_path, unsigned_zip_path)
 
     shasum(zip_path)
 

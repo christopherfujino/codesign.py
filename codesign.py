@@ -11,9 +11,8 @@ import time
 
 ARCHIVES = [
     {
-        'path': 'darwin-x64/artifacts.zip',
+        'path': 'android-arm-profile/darwin-x64.zip',
         'files_with_entitlements': [
-            'flutter_tester',
             'gen_snapshot',
             ],
         },
@@ -21,6 +20,78 @@ ARCHIVES = [
         'path': 'android-arm-release/darwin-x64.zip',
         'files_with_entitlements': [
             'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'android-arm64-release/darwin-x64.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'android-arm64-profile/darwin-x64.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'dart-sdk-darwin-x64.zip',
+        'files': [
+            'dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so',
+            ],
+        'files_with_entitlements': [
+            'dart-sdk/bin/dart',
+            ],
+        },
+    {
+        'path': 'darwin-x64/artifacts.zip',
+        'files_with_entitlements': [
+            'flutter_tester',
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'darwin-x64-profile/artifacts.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'darwin-x64-release/artifacts.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'darwin-x64/font-subset.zip',
+        'files': [
+            'font-subset',
+            ],
+        },
+    {
+        'path': 'darwin-x64/FlutterMacOS.framework.zip',
+        'files': [
+            {
+                'path': 'FlutterMacOS.framework.zip',
+                'files': [
+                    'Versions/A/FlutterMacOS',
+                    ]
+                }
+            ],
+        },
+   {
+        'path': 'ios/artifacts.zip',
+        'files': [
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ],
+                },
+            ],
+        'files_with_entitlements': [
+            'gen_snapshot_arm64',
+            'gen_snapshot_armv7',
             ],
         },
     {
@@ -39,44 +110,6 @@ ARCHIVES = [
             ],
         },
     {
-        'path': 'darwin-x64/FlutterMacOS.framework.zip',
-        'files': [
-            {
-                'path': 'FlutterMacOS.framework.zip',
-                'files': [
-                    'Versions/A/FlutterMacOS',
-                    ]
-                }
-            ],
-        },
-    {
-        'path': 'android-arm64-release/darwin-x64.zip',
-        'files_with_entitlements': [
-            'gen_snapshot',
-            ],
-        },
-    {
-        'path': 'android-arm64-profile/darwin-x64.zip',
-        'files_with_entitlements': [
-            'gen_snapshot',
-            ],
-        },
-    {
-        'path': 'ios/artifacts.zip',
-        'files': [
-            {
-                'path': 'Flutter.framework.zip',
-                'files': [
-                    'Flutter',
-                    ],
-                },
-            ],
-        'files_with_entitlements': [
-            'gen_snapshot_arm64',
-            'gen_snapshot_armv7',
-            ],
-        },
-    {
         'path': 'ios-release/artifacts.zip',
         'files_with_entitlements': [
             'gen_snapshot_arm64',
@@ -89,22 +122,6 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            ],
-        },
-    {
-        'path': 'android-arm-profile/darwin-x64.zip',
-        'files_with_entitlements': [
-            'gen_snapshot',
-            ],
-        },
-    {
-        'path': 'dart-sdk-darwin-x64.zip',
-        'files': [
-            'dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so',
-            ],
-        'files_with_entitlements': [
-            'dart-sdk/bin/dart',
-            #'dart-sdk/bin/utils/gen_snapshot',
             ],
         },
 ]

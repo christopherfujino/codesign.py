@@ -35,6 +35,18 @@ ARCHIVES = [
             ],
         },
     {
+        'path': 'android-x64-profile/darwin-x64.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
+        'path': 'android-x64-release/darwin-x64.zip',
+        'files_with_entitlements': [
+            'gen_snapshot',
+            ],
+        },
+    {
         'path': 'dart-sdk-darwin-x64.zip',
         'files': [
             'dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so',

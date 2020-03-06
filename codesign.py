@@ -252,6 +252,8 @@ def ensure_entitlements_file():
         <true/>
         <key>com.apple.security.network.server</key>
         <true/>
+        <key>com.apple.security.cs.disable-library-validation</key>
+        <true/>
     </dict>
 </plist>
 ''')

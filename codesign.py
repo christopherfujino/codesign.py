@@ -178,10 +178,10 @@ def write_log_to_file(filename, should_append=False):
     del LOG[:]
 
 
-def log_and_exit(message, exit_code=1):
+def log_and_exit(message, exit_code=1, file_name='crasher.log'):
     '''Flush log then exit'''
     log(message)
-    write_log_to_file(os.path.join(get_logs_dir(), 'crasher.log'))
+    write_log_to_file(os.path.join(get_logs_dir(), file_name))
     exit(exit_code)
 
 
@@ -228,6 +228,7 @@ def create_working_dir(parent):
     '''Clean our build folders'''
     dirname = os.path.join(parent, '%i_session' % STARTING_TIME)
     os.mkdir(dirname)
+    get_logs_dir()
     return dirname
 
 
@@ -359,7 +360,7 @@ def run_and_return_output(command):
 
 def get_logs_dir():
     '''Ensure exists, and return path to global logs dir'''
-    log_dir = os.path.join(CWD, '%i_logs' % STARTING_TIME)
+    log_dir = os.path.join(CWD, '%i_%s_logs' % (STARTING_TIME, sys.argv[1]))
     if not os.path.isdir(log_dir):
         os.mkdir(log_dir)
     return log_dir
@@ -529,12 +530,10 @@ def process_archive(
             log('Signing %s...\n' % absolute_path)
             sign(absolute_path, file_dict['entitlements'])
 
-    zip_stats(zip_path)
     log('Updating %s with signed files...\n' % zip_path)
     # update downloaded zip
     update_zip(staging_dirname, zip_path)
     shasum(zip_path)
-    zip_stats(zip_path)
 
     log('Removing dir %s...\n' % staging_dirname)
     shutil.rmtree(staging_dirname)
@@ -547,16 +546,6 @@ def process_archive(
     # Only notarize & write logfile for top-level archives
     log('Uploading %s to notary service...\n' % zip_path)
     request_uuid = notarize(zip_path)
-
-    dirname = os.path.join(get_logs_dir(), 'archive_runs')
-    if not os.path.isdir(dirname):
-        os.mkdir(dirname)
-    logfile_path = os.path.join(
-        dirname,
-        '%f_%s.log' % (
-            time.time(),
-            unique_filename))
-    write_log_to_file(logfile_path)
 
     # Return this dict for later verifying of the notarization & uploading
     return {
@@ -573,16 +562,6 @@ def verify_and_upload(request):
     if result:
         log('Uploading to %s' % request['output_cloud_path'])
         upload(request['zip_path'], request['output_cloud_path'])
-        logs_dirname = os.path.join(get_logs_dir(), 'verification_runs')
-        if not os.path.isdir(logs_dirname):
-            os.mkdir(logs_dirname)
-
-        file_name = os.path.join(
-            logs_dirname,
-            '%i_%s.log' % (
-                time.time(),
-                get_unique_filename(request['output_cloud_path'])))
-        write_log_to_file(file_name)
 
     return result
 
@@ -591,7 +570,7 @@ def main(args):
     '''Application entrypoint'''
     ensure_entitlements_file()
 
-    print 'Clean build folders...\n'
+    print('Clean build folders...\n')
     working_dir = create_working_dir(CWD)
 
     requests = []
@@ -664,14 +643,15 @@ def main(args):
         )
         requests.append(request)
     else:
-        commit = args[0]
+        engine_revision = args[0]
         requests = []
+        log('Beginning codesigning of engine revision %s' % engine_revision)
         for archive in ARCHIVES:
             requests.append(process_archive(
                 'gs://flutter_infra/flutter',
                 'gs://flutter_infra/flutter',
                 archive,
-                commit,
+                engine_revision,
                 working_dir))
 
     index = 0
@@ -703,6 +683,11 @@ def main(args):
             index = 0
             last_at_zero = time.time()
 
+    log_and_exit(
+        'Codesigning & Notarization was successful!',
+        0,
+        'notarization.log')
+
 
 # validations
 for key in [
@@ -710,7 +695,7 @@ for key in [
         'CODESIGN_USERNAME',
         'CODESIGN_CERT_NAME']:
     if os.environ.get(key, None) is None:
-        print 'Please provide the env variable %s' % key
+        print('Please provide the env variable %s' % key)
         exit(1)
 
 APP_SPECIFIC_PASSWORD = os.environ['APP_SPECIFIC_PASSWORD']

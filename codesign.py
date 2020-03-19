@@ -236,28 +236,7 @@ def ensure_entitlements_file():
     '''Write entitlements file if it does not exist'''
     entitlements_path = os.path.join(CWD, 'Entitlements.plist')
     if not os.path.isfile(entitlements_path):
-        log('Writing Entitlements.plist file...\n')
-        entitlements_file = open(entitlements_path, 'w')
-        entitlements_file.write('''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-    <dict>
-        <key>com.apple.security.cs.allow-jit</key>
-        <true/>
-        <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-        <true/>
-        <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-        <true/>
-        <key>com.apple.security.network.client</key>
-        <true/>
-        <key>com.apple.security.network.server</key>
-        <true/>
-        <key>com.apple.security.cs.disable-library-validation</key>
-        <true/>
-    </dict>
-</plist>
-''')
-        entitlements_file.close()
+        log_and_exit('Error! No Entitlements.plist file found!')
 
 
 def get_unique_filename(url):

@@ -53,6 +53,8 @@ ARCHIVES = [
             ],
         'files_with_entitlements': [
             'dart-sdk/bin/dart',
+            'dart-sdk/bin/dartaotruntime',
+            'dart-sdk/bin/utils/gen_snapshot',
             ],
         },
     {
@@ -569,45 +571,29 @@ def main(args):
             'libimobiledevice': {
                 'path': 'libimobiledevice.zip',
                 'files_with_entitlements': [
-                    'idevice_id',
-                    'ideviceinfo',
-                    'idevicename',
                     'idevicescreenshot',
                     'idevicesyslog',
-                    'libimobiledevice.6.dylib',
-                    ],
-                },
-            'ideviceinstaller': {
-                'path': 'ideviceinstaller.zip',
-                'files_with_entitlements': [
-                    'ideviceinstaller',
+                    'libimobiledevice-1.0.6.dylib',
                     ],
                 },
             'libplist': {
                 'path': 'libplist.zip',
                 'files_with_entitlements': [
-                    'libplist.3.dylib',
+                    'libplist-2.0.3.dylib',
                     ],
                 },
             'usbmuxd': {
                 'path': 'usbmuxd.zip',
                 'files_with_entitlements': [
                     'iproxy',
-                    'libusbmuxd.4.dylib',
+                    'libusbmuxd-2.0.6.dylib',
                     ],
                 },
             'openssl': {
                 'path': 'openssl.zip',
                 'files_with_entitlements': [
-                    'libssl.1.0.0.dylib',
-                    'libcrypto.1.0.0.dylib',
-                    ],
-                },
-            'libzip': {
-                'path': 'libzip.zip',
-                'files_with_entitlements': [
-                    'libzip.5.0.dylib',
-                    'libzip.5.dylib',
+                    'libssl.1.1.dylib',
+                    'libcrypto.1.1.dylib',
                     ],
                 },
             }
@@ -641,6 +627,10 @@ def main(args):
     # Sleep here so that we never check for a job before it has been started,
     # leading to an error from the notary service.
     time.sleep(45)
+
+    # Minimum time between successive requests for the same archive
+    timeout_seconds = 10
+
     # Iterate until requests is empty
     while requests:
         now = time.time()
@@ -648,8 +638,8 @@ def main(args):
         time_since_last_at_zero = now - last_at_zero
         # Ensure we never hit server more than twice in 10 seconds
         # for a particular request
-        if time_since_last_at_zero < 10:
-            timeout = 10 - time_since_last_at_zero
+        if time_since_last_at_zero < timeout_seconds:
+            timeout = timeout_seconds - time_since_last_at_zero
             log('Waiting %i seconds until next check...' % timeout)
             time.sleep(timeout)
 

@@ -93,6 +93,28 @@ ARCHIVES = [
                 }
             ],
         },
+    {
+        'path': 'darwin-x64-profile/FlutterMacOS.framework.zip',
+        'files': [
+            {
+                'path': 'FlutterMacOS.framework.zip',
+                'files': [
+                    'Versions/A/FlutterMacOS',
+                    ]
+                }
+            ],
+        },
+    {
+        'path': 'darwin-x64-release/FlutterMacOS.framework.zip',
+        'files': [
+            {
+                'path': 'FlutterMacOS.framework.zip',
+                'files': [
+                    'Versions/A/FlutterMacOS',
+                    ]
+                }
+            ],
+        },
    {
         'path': 'ios/artifacts.zip',
         'files': [

@@ -676,6 +676,9 @@ def main(args):
             index = 0
             last_at_zero = time.time()
 
+    # Clean up signed binaries
+    shutil.rmtree(working_dir)
+
     log_and_exit(
         'Codesigning & Notarization was successful!',
         0,

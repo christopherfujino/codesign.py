@@ -124,18 +124,8 @@ ARCHIVES = [
                     'Flutter',
                     ],
                 },
-            {
-                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
-            {
-                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
+            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
         'files_with_entitlements': [
             'gen_snapshot_arm64',
@@ -155,18 +145,8 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            {
-                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
-            {
-                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
+            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
         },
     {
@@ -182,18 +162,8 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            {
-                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
-            {
-                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
-                'files': [
-                    'Flutter',
-                    ]
-                },
+            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
         },
 ]

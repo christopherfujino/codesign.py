@@ -124,6 +124,18 @@ ARCHIVES = [
                     'Flutter',
                     ],
                 },
+            {
+                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
+                'files': [
+                    'Flutter',
+                    ]
+                },
+            {
+                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
+                'files': [
+                    'Flutter',
+                    ]
+                },
             ],
         'files_with_entitlements': [
             'gen_snapshot_arm64',
@@ -143,6 +155,18 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
+            {
+                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
+                'files': [
+                    'Flutter',
+                    ]
+                },
+            {
+                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
+                'files': [
+                    'Flutter',
+                    ]
+                },
             ],
         },
     {
@@ -154,6 +178,18 @@ ARCHIVES = [
         'files': [
             {
                 'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ]
+                },
+            {
+                'path': 'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework',
+                'files': [
+                    'Flutter',
+                    ]
+                },
+            {
+                'path': 'Flutter.xcframework/ios-armv7_arm64/Flutter.framework',
                 'files': [
                     'Flutter',
                     ]

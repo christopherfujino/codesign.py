@@ -49,7 +49,7 @@ ARCHIVES = [
     {
         'path': 'dart-sdk-darwin-x64.zip',
         'files': [
-            'dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so',
+            #'dart-sdk/bin/snapshots/libtensorflowlite_c-mac64.so',
             ],
         'files_with_entitlements': [
             'dart-sdk/bin/dart',

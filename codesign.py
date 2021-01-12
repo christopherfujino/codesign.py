@@ -278,7 +278,7 @@ def download(cloud_path, local_dest_path):
     '''Download supplied Google Storage URI'''
     if os.path.isfile(local_dest_path):
         log('Skipping download of %s, already exists locally\n' % cloud_path)
-        return
+        return False
 
     log('Downloading %s...\n' % cloud_path)
 
@@ -289,8 +289,9 @@ def download(cloud_path, local_dest_path):
         local_dest_path,
         ]
     exit_code = subprocess.call(command)
-    if exit_code != 0:
-        log_and_exit('Download of %s failed!' % cloud_path, exit_code)
+    return exit_code == 0
+    #if exit_code != 0:
+    #    log_and_exit('Download of %s failed!' % cloud_path, exit_code)
 
 
 def upload(local_path, cloud_path):
@@ -497,11 +498,13 @@ def process_archive(
 
     log('Beginning processing of %s...\n' % config['path'])
 
-    download(input_cloud_path, zip_path)
+    if not download(input_cloud_path, zip_path):
+        log('Download of %s failed, skipping.\n' % config['path'])
+        return None
 
     shasum(zip_path)
 
-    log('Unzipping archive...\n')
+    log('Unzipping archive at %s...\n' % zip_path)
     staging_dirname = unzip_archive(zip_path)
 
     log('Validating config...\n')
@@ -585,6 +588,8 @@ def main(args):
     working_dir = create_working_dir(CWD)
 
     requests = []
+    skipped_archives = []
+
     optional_switch = re.search('^--([a-z-]+)', args[0])
     if args[0] == '--verify':
         request_uuid = args[1]
@@ -636,7 +641,10 @@ def main(args):
             args[1],
             working_dir,
         )
-        requests.append(request)
+        if request == None:
+            skipped_archives.append(name)
+        else:
+            requests.append(request)
     else:
         engine_revision = args[0]
         requests = []
@@ -684,6 +692,10 @@ def main(args):
 
     # Clean up signed binaries
     shutil.rmtree(working_dir)
+
+    if len(skipped_archives) > 0:
+        log('Skipped the following archives which were not found on '
+                'cloud storage:\n%s' % '\n'.join(skipped_archives))
 
     log_and_exit(
         'Codesigning & Notarization was successful!',

@@ -115,15 +115,15 @@ ARCHIVES = [
                 }
             ],
         },
-   {
+    {
         'path': 'ios/artifacts.zip',
         'files': [
-            {
-                'path': 'Flutter.framework.zip',
-                'files': [
-                    'Flutter',
-                    ],
-                },
+            #{
+            #    'path': 'Flutter.framework.zip',
+            #    'files': [
+            #        'Flutter',
+            #        ],
+            #    },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -139,12 +139,12 @@ ARCHIVES = [
             'gen_snapshot_armv7',
             ],
         'files': [
-            {
-                'path': 'Flutter.framework.zip',
-                'files': [
-                    'Flutter',
-                    ]
-                },
+            #{
+            #    'path': 'Flutter.framework.zip',
+            #    'files': [
+            #        'Flutter',
+            #        ]
+            #    },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -156,12 +156,12 @@ ARCHIVES = [
             'gen_snapshot_armv7',
             ],
         'files': [
-            {
-                'path': 'Flutter.framework.zip',
-                'files': [
-                    'Flutter',
-                    ]
-                },
+            #{
+            #    'path': 'Flutter.framework.zip',
+            #    'files': [
+            #        'Flutter',
+            #        ]
+            #    },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -345,6 +345,7 @@ def validate_binary_exists(path):
 
 def sign(path, with_entitlements=False):
     '''Sign a single binary'''
+    log('Signing %s...' % path)
     command = [
         'codesign',
         '-f',  # force
@@ -478,13 +479,61 @@ def success_message(output_archive):
     log('Your notarization of %s was successful.' % output_archive)
 
 
+def process_zip(
+        zip_path,
+        config,
+        ):
+    '''Recursive'''
+    shasum(zip_path)
+
+    log('Unzipping archive at %s...\n' % zip_path)
+    staging_dirname = unzip_archive(zip_path)
+
+    log('Validating config...\n')
+    files = [
+        {'path': path, 'entitlements': False} for path in config.get('files', [])]
+    files_with_entitlements = [
+        {'path': path, 'entitlements': True} for path in config.get('files_with_entitlements', [])]
+    all_files = files + files_with_entitlements
+    for file_dict in all_files:
+        if isinstance(file_dict['path'], dict):
+            continue
+        absolute_path = os.path.join(staging_dirname, file_dict['path'])
+        if not validate_binary_exists(absolute_path):
+            log_and_exit('Cannot find file %s from config' % absolute_path)
+
+    log('Signing binaries...\n')
+    for file_dict in all_files:
+        if isinstance(file_dict['path'], dict):
+            next_config = file_dict['path']
+            next_zip_path = os.path.join(staging_dirname, next_config['path'])
+            log('Recursing for %s' % next_zip_path)
+            process_zip(next_zip_path, next_config)
+        else:
+            absolute_path = os.path.join(
+                staging_dirname,
+                file_dict['path'],
+                )
+            log('Signing %s...\n' % absolute_path)
+            sign(absolute_path, file_dict['entitlements'])
+
+    log('Updating %s with signed files...\n' % zip_path)
+    # update downloaded zip
+    update_zip(staging_dirname, zip_path)
+    shasum(zip_path)
+
+    log('Removing dir %s...\n' % staging_dirname)
+    shutil.rmtree(staging_dirname)
+
+    log('Finished processing %s...\n' % zip_path)
+
+
 def process_archive(
         input_storage_base_url,
         output_storage_base_url,
         config,
         commit,
-        working_dir,
-        is_reentrant=False):
+        working_dir):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
         input_storage_base_url,
@@ -502,60 +551,15 @@ def process_archive(
         log('Download of %s failed, skipping.\n' % config['path'])
         return None
 
-    shasum(zip_path)
-
-    log('Unzipping archive at %s...\n' % zip_path)
-    staging_dirname = unzip_archive(zip_path)
-
-    log('Validating config...\n')
-    files = [
-        {'path': path, 'entitlements': False}
-        for path in config.get('files', [])]
-    files_with_entitlements = [
-        {'path': path, 'entitlements': True}
-        for path in config.get('files_with_entitlements', [])]
-    all_files = files + files_with_entitlements
-    for file_dict in all_files:
-        if isinstance(file_dict['path'], dict):
-            continue
-        absolute_path = os.path.join(staging_dirname, file_dict['path'])
-        if not validate_binary_exists(absolute_path):
-            log_and_exit('Cannot find file %s from config' % absolute_path)
-
     output_cloud_path = '%s/%s/%s' % (
         output_storage_base_url,
         commit,
         config['path'])
-    log('Signing binaries...\n')
-    for file_dict in all_files:
-        if isinstance(file_dict['path'], dict):
-            process_archive(
-                input_storage_base_url,
-                output_storage_base_url,
-                file_dict['path'],  # this is actually a dict, not a path
-                commit,
-                staging_dirname,  # new working_dir
-                True)  # is re-entrant
-        else:
-            absolute_path = os.path.join(
-                staging_dirname,
-                file_dict['path'],
-                )
-            log('Signing %s...\n' % absolute_path)
-            sign(absolute_path, file_dict['entitlements'])
 
-    log('Updating %s with signed files...\n' % zip_path)
-    # update downloaded zip
-    update_zip(staging_dirname, zip_path)
-    shasum(zip_path)
+    process_zip(zip_path, config)
 
-    log('Removing dir %s...\n' % staging_dirname)
-    shutil.rmtree(staging_dirname)
-
-    log('Finished processing %s...\n' % input_cloud_path)
-
-    if is_reentrant:
-        return None
+    #if is_reentrant:
+    #    return None
 
     # Only notarize & write logfile for top-level archives
     log('Uploading %s to notary service...\n' % zip_path)
@@ -665,7 +669,7 @@ def main(args):
     time.sleep(45)
 
     # Minimum time between successive requests for the same archive
-    timeout_seconds = 10
+    timeout_seconds = 20
 
     # Iterate until requests is empty
     while requests:

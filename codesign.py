@@ -118,12 +118,12 @@ ARCHIVES = [
     {
         'path': 'ios/artifacts.zip',
         'files': [
-            #{
-            #    'path': 'Flutter.framework.zip',
-            #    'files': [
-            #        'Flutter',
-            #        ],
-            #    },
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ],
+                },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -139,12 +139,12 @@ ARCHIVES = [
             'gen_snapshot_armv7',
             ],
         'files': [
-            #{
-            #    'path': 'Flutter.framework.zip',
-            #    'files': [
-            #        'Flutter',
-            #        ]
-            #    },
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ]
+                },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -156,12 +156,12 @@ ARCHIVES = [
             'gen_snapshot_armv7',
             ],
         'files': [
-            #{
-            #    'path': 'Flutter.framework.zip',
-            #    'files': [
-            #        'Flutter',
-            #        ]
-            #    },
+            {
+                'path': 'Flutter.framework.zip',
+                'files': [
+                    'Flutter',
+                    ]
+                },
             'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
             'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
             ],
@@ -329,7 +329,8 @@ def unzip_archive(file_path):
         '-d',
         archive_dirname])
     if exit_code != 0:
-        log_and_exit('Unzipping of %s failed' % file_path, exit_code)
+        log('Unzipping of %s failed' % file_path)
+        return None
     return archive_dirname
 
 
@@ -488,6 +489,9 @@ def process_zip(
 
     log('Unzipping archive at %s...\n' % zip_path)
     staging_dirname = unzip_archive(zip_path)
+    if staging_dirname == None:
+        log('Cancelling processing of %s' % zip_path)
+        return
 
     log('Validating config...\n')
     files = [

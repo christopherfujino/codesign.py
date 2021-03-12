@@ -659,8 +659,8 @@ def main(args):
         log('Beginning codesigning of engine revision %s' % engine_revision)
         for archive in ARCHIVES:
             requests.append(process_archive(
-                'gs://flutter_infra/flutter',
-                'gs://flutter_infra/flutter',
+                'gs://flutter_infra_release/flutter',
+                'gs://flutter_infra_release/flutter',
                 archive,
                 engine_revision,
                 working_dir))

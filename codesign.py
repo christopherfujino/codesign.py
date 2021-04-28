@@ -649,6 +649,13 @@ def main(args):
             args[1],
             working_dir,
         )
+        request = process_archive(
+            'gs://flutter_infra_release/ios-usb-dependencies/unsigned/%s' % name,
+            'gs://flutter_infra_release/ios-usb-dependencies/%s' % name,
+            libimobiledevice_archives[name],
+            args[1],
+            working_dir,
+        )
         if request == None:
             skipped_archives.append(name)
         else:
@@ -658,6 +665,12 @@ def main(args):
         requests = []
         log('Beginning codesigning of engine revision %s' % engine_revision)
         for archive in ARCHIVES:
+            requests.append(process_archive(
+                'gs://flutter_infra/flutter',
+                'gs://flutter_infra/flutter',
+                archive,
+                engine_revision,
+                working_dir))
             requests.append(process_archive(
                 'gs://flutter_infra_release/flutter',
                 'gs://flutter_infra_release/flutter',

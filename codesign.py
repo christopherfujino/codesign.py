@@ -588,7 +588,7 @@ def verify_and_upload(request):
     return result
 
 
-def main(args):
+def main(args, bucket_prefix):
     '''Application entrypoint'''
     ensure_entitlements_file()
 
@@ -643,15 +643,8 @@ def main(args):
             log('Unknown option %s' % args[0])
             exit(1)
         request = process_archive(
-            'gs://flutter_infra/ios-usb-dependencies/unsigned/%s' % name,
-            'gs://flutter_infra/ios-usb-dependencies/%s' % name,
-            libimobiledevice_archives[name],
-            args[1],
-            working_dir,
-        )
-        request = process_archive(
-            'gs://flutter_infra_release/ios-usb-dependencies/unsigned/%s' % name,
-            'gs://flutter_infra_release/ios-usb-dependencies/%s' % name,
+            'gs://%s/ios-usb-dependencies/unsigned/%s' % (bucket_prefix, name),
+            'gs://%s/ios-usb-dependencies/%s' % (bucket_prefix, name),
             libimobiledevice_archives[name],
             args[1],
             working_dir,
@@ -666,14 +659,8 @@ def main(args):
         log('Beginning codesigning of engine revision %s' % engine_revision)
         for archive in ARCHIVES:
             requests.append(process_archive(
-                'gs://flutter_infra/flutter',
-                'gs://flutter_infra/flutter',
-                archive,
-                engine_revision,
-                working_dir))
-            requests.append(process_archive(
-                'gs://flutter_infra_release/flutter',
-                'gs://flutter_infra_release/flutter',
+                'gs://%s/flutter' % bucket_prefix,
+                'gs://%s/flutter' % bucket_prefix,
                 archive,
                 engine_revision,
                 working_dir))
@@ -718,10 +705,7 @@ def main(args):
         log('Skipped the following archives which were not found on '
                 'cloud storage:\n%s' % '\n'.join(skipped_archives))
 
-    log_and_exit(
-        'Codesigning & Notarization was successful!',
-        0,
-        'notarization.log')
+    log('Codesigning & Notarization successful')
 
 
 # validations
@@ -745,4 +729,7 @@ if len(sys.argv) == 1:
     usage()
     exit(1)
 
-main(sys.argv[1:])
+main(sys.argv[1:], 'flutter_infra')
+main(sys.argv[1:], 'flutter_infra_release')
+
+log_and_exit('Success', 0, 'notarization.log')

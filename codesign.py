@@ -410,32 +410,42 @@ def update_zip(path, destination_path):
 
 def upload_zip_to_notary(archive_path):
     '''Uploads zip file to the notary service'''
-    log('Initiating upload of file %s to notary service...' % archive_path)
-    command = [
-        'xcrun',
-        'altool',
-        '--notarize-app',
-        '--primary-bundle-id',
-        CODESIGN_PRIMARY_BUNDLE_ID,
-        '--username',
-        CODESIGN_USERNAME,
-        '--password',
-        APP_SPECIFIC_PASSWORD,
-        '--file',
-        archive_path,
-        ]
-    # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
-    out = '\n'.join(run_and_return_output(command))
-    log('out: %s' % out)
+    # Sometimes this flakes, so try twice
+    attempts_left = 2
+    while attempts_left > 0:
+        log('Initiating upload of file %s to notary service...' % archive_path)
+        command = [
+            'xcrun',
+            'altool',
+            '--notarize-app',
+            '--primary-bundle-id',
+            CODESIGN_PRIMARY_BUNDLE_ID,
+            '--username',
+            CODESIGN_USERNAME,
+            '--password',
+            APP_SPECIFIC_PASSWORD,
+            '--file',
+            archive_path,
+            ]
+        # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
+        out = '\n'.join(run_and_return_output(command))
+        log('out: %s' % out)
 
-    match = re.search('RequestUUID = ([a-z0-9-]+)', out)
-    if not match:
-        log_and_exit('Unrecognized output from: %s' % ' '.join(command))
+        match = re.search('RequestUUID = ([a-z0-9-]+)', out)
+        if not match:
+            log('Unrecognized output from: %s' % ' '.join(command))
+            attempts_left -= 1
+            # wait 2 seconds before trying again
+            time.sleep(2)
+            continue
 
-    request_uuid = match.group(1)
-    log('Your RequestUUID is: %s' % request_uuid)
+        request_uuid = match.group(1)
+        log('Your RequestUUID is: %s' % request_uuid)
 
-    return request_uuid
+        return request_uuid
+
+    log_and_exit(
+            'Failed to upload file %s to the notary service' % archive_path)
 
 
 def check_status(uuid):
@@ -561,9 +571,6 @@ def process_archive(
         config['path'])
 
     process_zip(zip_path, config)
-
-    #if is_reentrant:
-    #    return None
 
     # Only notarize & write logfile for top-level archives
     log('Uploading %s to notary service...\n' % zip_path)

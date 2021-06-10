@@ -736,7 +736,6 @@ if len(sys.argv) == 1:
     usage()
     exit(1)
 
-main(sys.argv[1:], 'flutter_infra')
 main(sys.argv[1:], 'flutter_infra_release')
 
 log_and_exit('Success', 0, 'notarization.log')

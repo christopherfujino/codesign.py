@@ -411,7 +411,7 @@ def update_zip(path, destination_path):
 def upload_zip_to_notary(archive_path):
     '''Uploads zip file to the notary service'''
     # Sometimes this flakes, so try twice
-    attempts_left = 2
+    attempts_left = 4
     while attempts_left > 0:
         log('Initiating upload of file %s to notary service...' % archive_path)
         command = [
@@ -436,7 +436,7 @@ def upload_zip_to_notary(archive_path):
             log('Unrecognized output from: %s' % ' '.join(command))
             attempts_left -= 1
             # wait 2 seconds before trying again
-            time.sleep(2)
+            time.sleep(4)
             continue
 
         request_uuid = match.group(1)
@@ -727,7 +727,7 @@ for key in [
 APP_SPECIFIC_PASSWORD = os.environ['APP_SPECIFIC_PASSWORD']
 CODESIGN_PRIMARY_BUNDLE_ID = os.environ.get(
     'CODESIGN_PRIMARY_BUNDLE_ID',
-    'com.example.arbitrary')
+    'dev.flutter.tools')
 CODESIGN_USERNAME = os.environ['CODESIGN_USERNAME']
 CODESIGN_CERT_NAME = os.environ['CODESIGN_CERT_NAME']
 

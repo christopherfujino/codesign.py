@@ -124,8 +124,8 @@ ARCHIVES = [
                     'Flutter',
                     ],
                 },
-            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         'files_with_entitlements': [
             'gen_snapshot_arm64',
@@ -145,8 +145,8 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         },
     {
@@ -162,8 +162,8 @@ ARCHIVES = [
                     'Flutter',
                     ]
                 },
-            'Flutter.xcframework/ios-x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-armv7_arm64/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         },
 ]
@@ -411,7 +411,7 @@ def update_zip(path, destination_path):
 def upload_zip_to_notary(archive_path):
     '''Uploads zip file to the notary service'''
     # Sometimes this flakes, so try twice
-    attempts_left = 4
+    attempts_left = 5
     while attempts_left > 0:
         log('Initiating upload of file %s to notary service...' % archive_path)
         command = [

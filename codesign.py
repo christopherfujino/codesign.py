@@ -82,6 +82,27 @@ ARCHIVES = [
             ],
         },
     {
+        'path': 'darwin-x64/gen_snapshot.zip',
+        'files_with_entitlements': [
+            'gen_snapshot_arm64',
+            'gen_snapshot_x64',
+            ],
+        },
+    {
+        'path': 'darwin-x64-profile/gen_snapshot.zip',
+        'files_with_entitlements': [
+            'gen_snapshot_arm64',
+            'gen_snapshot_x64',
+            ],
+        },
+    {
+        'path': 'darwin-x64-release/gen_snapshot.zip',
+        'files_with_entitlements': [
+            'gen_snapshot_arm64',
+            'gen_snapshot_x64',
+            ],
+        },
+    {
         'path': 'darwin-x64/font-subset.zip',
         'files': [
             'font-subset',

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''Hello world'''
 
 import json
@@ -395,7 +395,8 @@ def run_and_return_output(command):
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
-    return proc.stdout.readlines() + proc.stderr.readlines()
+    byteList = proc.stdout.readlines() + proc.stderr.readlines()
+    return [x.decode('utf-8') for x in byteList]
 
 
 def get_logs_dir():

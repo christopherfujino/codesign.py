@@ -394,9 +394,9 @@ def run_and_return_output(command):
     proc = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
-    byteList = proc.stdout.readlines() + proc.stderr.readlines()
-    return [x.decode('utf-8') for x in byteList]
+        stderr=subprocess.PIPE,
+        text=True)
+    return proc.stdout.readlines() + proc.stderr.readlines()
 
 
 def get_logs_dir():
@@ -439,9 +439,38 @@ def upload_zip_to_notary(archive_path):
     '''Uploads zip file to the notary service'''
     # Sometimes this flakes, so try twice
     attempts_left = 5
+    isNotaryTool = True
     while attempts_left > 0:
-        log('Initiating upload of file %s to notary service...' % archive_path)
+        log('checking Xcode version...')
         command = [
+            'xcodebuild',
+            '-version',
+            ]
+        outArray = run_and_return_output(command)
+        log('out: %s' % '\n'.join(outArray))
+        xcode_version = int(outArray[0].split()[1].split('.')[0])
+        if xcode_version <= 12:
+            isNotaryTool = False
+        log('based on your xcode major version of '+ str(xcode_version)+
+            ', the decision to use notarytool is '+str(isNotaryTool))
+
+        log('Initiating upload of file %s to notary service...' % archive_path)
+        if isNotaryTool:
+            command = [
+            'xcrun',
+            'notarytool',
+            'submit',
+            archive_path,
+            '--wait',
+            '--apple-id',
+            CODESIGN_APPSTORE_ID,
+            '--password',
+            CODESIGN_APPSTORE_PASSWORD,
+            '--team-id',
+            CODESIGN_TEAM_ID,
+            ]
+        else:
+            command = [
             'xcrun',
             'altool',
             '--notarize-app',
@@ -454,11 +483,15 @@ def upload_zip_to_notary(archive_path):
             '--file',
             archive_path,
             ]
+
         # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
         out = '\n'.join(run_and_return_output(command))
         log('out: %s' % out)
 
-        match = re.search('RequestUUID = ([a-z0-9-]+)', out)
+        if isNotaryTool:
+            match = re.search('id: ([a-z0-9-]+)', out)
+        else:
+            match = re.search('RequestUUID = ([a-z0-9-]+)', out)
         if not match:
             log('Unrecognized output from: %s' % ' '.join(command))
             attempts_left -= 1
@@ -746,7 +779,11 @@ def main(args, bucket_prefix):
 for key in [
         'APP_SPECIFIC_PASSWORD',
         'CODESIGN_USERNAME',
-        'CODESIGN_CERT_NAME']:
+        'CODESIGN_CERT_NAME',
+        'CODESIGN_APPSTORE_ID',
+        'CODESIGN_APPSTORE_PASSWORD',
+        'CODESIGN_TEAM_ID',
+        ]:
     if os.environ.get(key, None) is None:
         print('Please provide the env variable %s' % key)
         exit(1)
@@ -757,6 +794,10 @@ CODESIGN_PRIMARY_BUNDLE_ID = os.environ.get(
     'dev.flutter.tools')
 CODESIGN_USERNAME = os.environ['CODESIGN_USERNAME']
 CODESIGN_CERT_NAME = os.environ['CODESIGN_CERT_NAME']
+
+CODESIGN_APPSTORE_ID = os.environ['CODESIGN_APPSTORE_ID']
+CODESIGN_APPSTORE_PASSWORD = os.environ['CODESIGN_APPSTORE_PASSWORD']
+CODESIGN_TEAM_ID = os.environ['CODESIGN_TEAM_ID']
 
 
 if len(sys.argv) == 1:

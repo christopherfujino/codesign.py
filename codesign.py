@@ -67,6 +67,8 @@ ARCHIVES = [
         'files_with_entitlements': [
             'flutter_tester',
             'gen_snapshot',
+            'impellerc',
+            'libtessellator.dylib',
             ],
         },
     {
@@ -546,9 +548,9 @@ def check_status(uuid, isNotaryTool):
 
     status = match.group(1)
     if isNotaryTool:
-        if status == 'Accepted': #seems like accpeted is the equivalent of success, if it means in progress it never finishes
+        if status == 'Accepted': 
             return True
-        if status == 'in progress': #this needs to be verified. can't find notarytool open source code. Accepted is the only status observed so far
+        if status == 'In Progress': 
             log('Notarization is still pending...\n')
             return False
 

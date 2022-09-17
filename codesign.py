@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''Hello world'''
 
 import json
@@ -243,6 +243,21 @@ def shasum(path_to_file):
     log(sha)
     return sha
 
+def check_xcode_version():
+    isNotaryTool = True
+    log('checking Xcode version...')
+    command = [
+        'xcodebuild',
+        '-version',
+        ]
+    outArray = run_and_return_output(command)
+    log('out: %s' % '\n'.join(outArray))
+    xcode_version = int(outArray[0].split()[1].split('.')[0])
+    if xcode_version <= 12:
+        isNotaryTool = False
+    log('based on your xcode major version of '+ str(xcode_version)+
+        ', the decision to use notarytool is '+str(isNotaryTool))
+    return isNotaryTool
 
 class Cd(object):
     """Context manager for changing the current working directory"""
@@ -390,7 +405,8 @@ def run_and_return_output(command):
     proc = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+        stderr=subprocess.PIPE,
+        text=True)
     return proc.stdout.readlines() + proc.stderr.readlines()
 
 
@@ -430,13 +446,27 @@ def update_zip(path, destination_path):
             ])
 
 
-def upload_zip_to_notary(archive_path):
+def upload_zip_to_notary(archive_path, isNotaryTool):
     '''Uploads zip file to the notary service'''
     # Sometimes this flakes, so try twice
     attempts_left = 5
     while attempts_left > 0:
         log('Initiating upload of file %s to notary service...' % archive_path)
-        command = [
+        if isNotaryTool:
+            command = [
+            'xcrun',
+            'notarytool',
+            'submit',
+            archive_path,
+            '--apple-id',
+            CODESIGN_APPSTORE_ID,
+            '--password',
+            APP_SPECIFIC_PASSWORD,
+            '--team-id',
+            CODESIGN_TEAM_ID,
+            ]
+        else:
+            command = [
             'xcrun',
             'altool',
             '--notarize-app',
@@ -449,11 +479,15 @@ def upload_zip_to_notary(archive_path):
             '--file',
             archive_path,
             ]
+
         # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
         out = '\n'.join(run_and_return_output(command))
         log('out: %s' % out)
 
-        match = re.search('RequestUUID = ([a-z0-9-]+)', out)
+        if isNotaryTool:
+            match = re.search('id: ([a-z0-9-]+)', out)
+        else:
+            match = re.search('RequestUUID = ([a-z0-9-]+)', out)
         if not match:
             log('Unrecognized output from: %s' % ' '.join(command))
             attempts_left -= 1
@@ -470,41 +504,67 @@ def upload_zip_to_notary(archive_path):
             'Failed to upload file %s to the notary service' % archive_path)
 
 
-def check_status(uuid):
+def check_status(uuid, isNotaryTool):
     '''Check the status of our request'''
-    command = [
-        'xcrun',
-        'altool',
-        '--notarization-info',
-        uuid,
-        '-u',
-        CODESIGN_USERNAME,
-        '--password',
-        APP_SPECIFIC_PASSWORD,
-        ]
+    if isNotaryTool:
+        command = [
+            'xcrun',
+            'notarytool',
+            'info',
+            uuid,
+            '--password',
+            APP_SPECIFIC_PASSWORD,
+            '--apple-id',
+            CODESIGN_APPSTORE_ID,
+            '--team-id',
+            CODESIGN_TEAM_ID,
+            ]
+    else:
+        command = [
+            'xcrun',
+            'altool',
+            '--notarization-info',
+            uuid,
+            '-u',
+            CODESIGN_USERNAME,
+            '--password',
+            APP_SPECIFIC_PASSWORD,
+            ]
 
     log('Checking on the status of request: %s' % uuid)
     # Note that this tool outputs to STDOUT on Xcode 11, STDERR on earlier
     output = '\n'.join(run_and_return_output(command))
     log(output)
 
-    match = re.search('[ ]*Status: ([a-z ]+)', output)
+    if isNotaryTool:
+        match = re.search('[ ]*status: ([a-zA-z ]+)', output)
+    else:
+        match = re.search('[ ]*Status: ([a-z ]+)', output)
     if not match:
         log_and_exit('Unrecognized output from: %s' % ' '.join(command))
 
     status = match.group(1)
-    if status == 'success':
-        return True
-    if status == 'in progress':
-        log('Notarization is still pending...\n')
-        return False
+    if isNotaryTool:
+        if status == 'Accepted': 
+            return True
+        if status == 'In Progress': 
+            log('Notarization is still pending...\n')
+            return False
 
-    return log_and_exit('Notarization failed with: %s' % status)
+        return log_and_exit('Notarization failed with: %s' % status)
+    else:
+        if status == 'success':
+            return True
+        if status == 'in progress':
+            log('Notarization is still pending...\n')
+            return False
+
+        return log_and_exit('Notarization failed with: %s' % status)
 
 
-def notarize(archive_path):
+def notarize(archive_path, isNotaryTool):
     '''Notarize given archive zip'''
-    return upload_zip_to_notary(archive_path)
+    return upload_zip_to_notary(archive_path, isNotaryTool)
 
 
 def success_message(output_archive):
@@ -569,7 +629,8 @@ def process_archive(
         output_storage_base_url,
         config,
         commit,
-        working_dir):
+        working_dir,
+        isNotaryTool):
     '''Main execution'''
     input_cloud_path = '%s/%s/%s' % (
         input_storage_base_url,
@@ -596,7 +657,7 @@ def process_archive(
 
     # Only notarize & write logfile for top-level archives
     log('Uploading %s to notary service...\n' % zip_path)
-    request_uuid = notarize(zip_path)
+    request_uuid = notarize(zip_path, isNotaryTool)
 
     # Return this dict for later verifying of the notarization & uploading
     return {
@@ -606,10 +667,10 @@ def process_archive(
         }
 
 
-def verify_and_upload(request):
+def verify_and_upload(request, isNotaryTool):
     '''Given a notarization request, check for its status & upload if done'''
     # Only upload if notarization was successful
-    result = check_status(request['uuid'])
+    result = check_status(request['uuid'], isNotaryTool)
     if result:
         log('Uploading to %s' % request['output_cloud_path'])
         upload(request['zip_path'], request['output_cloud_path'])
@@ -627,10 +688,11 @@ def main(args, bucket_prefix):
     requests = []
     skipped_archives = []
 
+    isNotaryTool = check_xcode_version()
     optional_switch = re.search('^--([a-z-]+)', args[0])
     if args[0] == '--verify':
         request_uuid = args[1]
-        check_status(request_uuid)
+        check_status(request_uuid, isNotaryTool)
     elif optional_switch:
         name = optional_switch.group(1)
         libimobiledevice_archives = {
@@ -677,6 +739,7 @@ def main(args, bucket_prefix):
             libimobiledevice_archives[name],
             args[1],
             working_dir,
+            isNotaryTool
         )
         if request == None:
             skipped_archives.append(name)
@@ -692,7 +755,8 @@ def main(args, bucket_prefix):
                 'gs://%s/flutter' % bucket_prefix,
                 archive,
                 engine_revision,
-                working_dir))
+                working_dir,
+                isNotaryTool))
 
     index = 0
     last_at_zero = time.time()
@@ -717,7 +781,7 @@ def main(args, bucket_prefix):
             time.sleep(timeout)
 
         request = requests[index]
-        if verify_and_upload(request):
+        if verify_and_upload(request, isNotaryTool):
             # remove from list...same index now points to next request...
             requests.remove(request)
         else:
@@ -741,7 +805,11 @@ def main(args, bucket_prefix):
 for key in [
         'APP_SPECIFIC_PASSWORD',
         'CODESIGN_USERNAME',
-        'CODESIGN_CERT_NAME']:
+        'CODESIGN_CERT_NAME',
+        'CODESIGN_APPSTORE_ID',
+        'CODESIGN_APPSTORE_PASSWORD',
+        'CODESIGN_TEAM_ID',
+        ]:
     if os.environ.get(key, None) is None:
         print('Please provide the env variable %s' % key)
         exit(1)
@@ -752,6 +820,9 @@ CODESIGN_PRIMARY_BUNDLE_ID = os.environ.get(
     'dev.flutter.tools')
 CODESIGN_USERNAME = os.environ['CODESIGN_USERNAME']
 CODESIGN_CERT_NAME = os.environ['CODESIGN_CERT_NAME']
+
+CODESIGN_APPSTORE_ID = os.environ['CODESIGN_APPSTORE_ID']
+CODESIGN_TEAM_ID = os.environ['CODESIGN_TEAM_ID']
 
 
 if len(sys.argv) == 1:

@@ -67,6 +67,8 @@ ARCHIVES = [
         'files_with_entitlements': [
             'flutter_tester',
             'gen_snapshot',
+            'impellerc',
+            'libtessellator.dylib',
             ],
         },
     {
@@ -151,18 +153,15 @@ ARCHIVES = [
                     ],
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         'files_with_entitlements': [
             'gen_snapshot_arm64',
-            'gen_snapshot_armv7',
             ],
         },
     {
         'path': 'ios-profile/artifacts.zip',
         'files_with_entitlements': [
             'gen_snapshot_arm64',
-            'gen_snapshot_armv7',
             ],
         'files': [
             {
@@ -172,14 +171,12 @@ ARCHIVES = [
                     ]
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         },
     {
         'path': 'ios-release/artifacts.zip',
         'files_with_entitlements': [
             'gen_snapshot_arm64',
-            'gen_snapshot_armv7',
             ],
         'files': [
             {
@@ -189,7 +186,6 @@ ARCHIVES = [
                     ]
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
-            'Flutter.xcframework/ios-arm64_armv7/Flutter.framework/Flutter',
             ],
         },
 ]

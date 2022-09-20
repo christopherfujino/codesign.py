@@ -69,6 +69,7 @@ ARCHIVES = [
             'gen_snapshot',
             'impellerc',
             'libtessellator.dylib',
+            'libpath_ops.dylib',
             ],
         },
     {

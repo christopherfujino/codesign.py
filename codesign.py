@@ -80,6 +80,7 @@ ARCHIVES = [
             'impellerc',
             'libpath_ops.dylib',
             'libtessellator.dylib',
+            'libpath_ops.dylib',
             ],
         },
     {
@@ -164,6 +165,7 @@ ARCHIVES = [
                     ],
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64/Flutter.framework/Flutter',
             ],
         'files_with_entitlements': [
             'gen_snapshot_arm64',
@@ -182,6 +184,7 @@ ARCHIVES = [
                     ]
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64/Flutter.framework/Flutter',
             ],
         },
     {
@@ -197,6 +200,7 @@ ARCHIVES = [
                     ]
                 },
             'Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter',
+            'Flutter.xcframework/ios-arm64/Flutter.framework/Flutter',
             ],
         },
 ]

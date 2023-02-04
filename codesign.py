@@ -63,11 +63,22 @@ ARCHIVES = [
             ],
         },
     {
+        'path': 'darwin-arm64/artifacts.zip',
+        'files_with_entitlements': [
+            'flutter_tester',
+            'gen_snapshot',
+            'impellerc',
+            'libpath_ops.dylib',
+            'libtessellator.dylib',
+            ],
+        },
+    {
         'path': 'darwin-x64/artifacts.zip',
         'files_with_entitlements': [
             'flutter_tester',
             'gen_snapshot',
             'impellerc',
+            'libpath_ops.dylib',
             'libtessellator.dylib',
             ],
         },

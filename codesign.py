@@ -52,6 +52,7 @@ ARCHIVES = [
             'dart-sdk/bin/dart',
             'dart-sdk/bin/dartaotruntime',
             'dart-sdk/bin/utils/gen_snapshot',
+            'dart-sdk/bin/utils/wasm-opt',
             ],
         },
     {
@@ -60,6 +61,7 @@ ARCHIVES = [
             'dart-sdk/bin/dart',
             'dart-sdk/bin/dartaotruntime',
             'dart-sdk/bin/utils/gen_snapshot',
+            'dart-sdk/bin/utils/wasm-opt',
             ],
         },
     {

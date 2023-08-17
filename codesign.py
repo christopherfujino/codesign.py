@@ -119,6 +119,12 @@ ARCHIVES = [
             ],
         },
     {
+        'path': 'darwin-arm64/font-subset.zip',
+        'files': [
+            'font-subset',
+            ],
+        },
+    {
         'path': 'darwin-x64/font-subset.zip',
         'files': [
             'font-subset',
